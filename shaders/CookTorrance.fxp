@@ -1,0 +1,77 @@
+texture ColorMap;
+sampler ColorMapSampler = sampler_state{};
+
+texture BumpMap;
+sampler BumpMapSampler = sampler_state{};
+
+
+// -------------------------------------------------------------
+// Pixel Shader (input channels):output channel
+// -------------------------------------------------------------
+float4 PS (float2 Tex: TEXCOORD0, 
+			float3 View : TEXCOORD1, 
+			float3 Light: TEXCOORD2,
+			float3 Half: TEXCOORD3) : COLOR
+{
+	const float e = 2.718281828459045235360287471352662497757247093699959574966967628f;
+	const float PI = 3.141592653589793238462643383279502884197169399375105820974944592f;
+	const float roughness = 0.2f;
+	const float RI = 0.01f;
+	const float SpecInt = 0.8f;
+	const float DiffInt = 0.2f;
+	const float AmbInt = 0.1f;
+	const float Iidw = 14.0f;
+//	const float4 col = {0.84765625, 0.52734375, 0.09765625, 1.0};
+
+    float4 color = tex2D(ColorMapSampler, Tex);	// fetch color map
+    float3 N = (2 * tex2D(BumpMapSampler, Tex)) - 1.0f; // bump map
+ 	
+	float3 L = normalize(Light);
+	float3 V = normalize(View);
+	float3 H = normalize(Half);
+	
+	//------------------------------
+	// Compute Beckmann's distribution function
+	//					  -[(1 - N.H^2) / m^2 * (N.H)^2]
+	// D =     1       e^		
+	//      m^2 N.H^4        
+	// ß is the angle between N and H
+	// m is the root-mean-square slope of the microfacets
+	//------------------------------
+	float NH = saturate(dot(N, H));
+	float NH2 = NH * NH;
+	float Roughness = roughness * roughness;
+	float D = pow(e, -((1 - NH2) / (Roughness * NH2))) / (Roughness * NH2 * NH2);
+	
+	//------------------------------
+	// Compute Fresnel term (Schlick's approximation) 
+	// F = IR + (1-IR)*(1 - (N.V))^5
+	// // IR + (1 - N.V)^5 * (1 - IR)
+	//------------------------------
+	float NV = saturate(dot(N, V));
+	float F = RI  +  (1 - RI) * pow((1 - NV), 5.0f);
+	
+	//------------------------------
+	// Compute self shadowing term 
+	// G = min(1, 2 * N.H * N.L, 2 * N.H * N.V)
+	//                 V.H           V.H
+	//------------------------------
+	float VH = saturate(dot(V, H));
+	float NL = saturate(dot(L, N));
+	float G = min(1.0f, min((2 * NH * NL) / VH, (2 * NH * NV) / VH));
+	
+	//------------------------------
+	// Compute final Cook-Torrance specular term
+	// Rs = (D * F * G) * 1 / PI * N.V * N.L
+	//------------------------------
+	float Specular = saturate((D * F * G) / (PI * NL * NV));
+	
+	//------------------------------
+	// Original: Ir = Ia * Ra + Ii(N.L)dw * (s * Rs + d * Rd)
+	// My formula: Ir = Ia * Ra + N.L * sat(lidw * (d * Rd * color + s * Rs))
+	// N.L in the Rs formula and N.L in this formula negate each other
+	//------------------------------
+	float3 temp = AmbInt * color + NL * saturate(Iidw * ((DiffInt * NL * color) + (SpecInt * Specular)));
+	
+	return float4(temp.x, temp.y, temp.z, 1.0f);
+}

@@ -1,0 +1,13 @@
+sampler ColorMapSampler;
+sampler BumpMapSampler;
+
+
+float4 PS (float3 LightDir: COLOR0, float2 Tex: TEXCOORD0, float2 Tex2 : TEXCOORD1) : COLOR
+{
+    float4 color = tex2D(ColorMapSampler, Tex);	// fetch color map
+    float3 bumpNormal = (2 * (tex2D(BumpMapSampler, Tex2))) - 1.0f; // bump map
+    
+    float4 diff = 2.0f * saturate(dot(bumpNormal, (LightDir - 0.5f) * 2.0f)); // diffuse comp.
+ 	
+ 	return color * diff;
+}
