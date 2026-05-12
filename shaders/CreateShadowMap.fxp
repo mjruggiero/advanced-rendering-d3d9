@@ -1,0 +1,4 @@
+float4 PS(float Depth : TEXCOORD0) : COLOR
+{   
+	return Depth;
+}

@@ -1,11 +1,51 @@
 texture ColorMap;
 sampler ColorMapSampler = sampler_state{};
 
+sampler ShadowMapSampler : register(s2);
+
+// More accurate encoding
+#define EXP_BASE    (1.04)
+#define EXP_OFFSET  (64.0)
+// a^n = b
+#define LOG(a, b)   ( log((b)) / log((a)) )
+
+bool bHDR : register(c29);
+
+float4 EncodeRGBE8(in float3 rgb)
+{
+	float4 rgbe;
+
+    // determine the largest color component
+	float fMax = max(max(rgb.r, rgb.g), rgb.b);
+	
+	float fExp = floor( LOG(EXP_BASE, fMax) );
+
+	rgbe.a = clamp( (fExp + EXP_OFFSET) / 256, 0.0, 1.0 );
+	rgbe.rgb = rgb / pow(EXP_BASE, rgbe.a * 256 - EXP_OFFSET);
+
+	return rgbe;
+}
 
 // -------------------------------------------------------------
 // Pixel Shader (input channels):output channel
 // -------------------------------------------------------------
-float4 PS(float2 Tex: TEXCOORD0) : COLOR
+float4 PS(float2 Tex: TEXCOORD0,
+   	float4 ShadowMapUV	: TEXCOORD1,
+   	float Depth			: TEXCOORD2) : COLOR
 {
-    return tex2D(ColorMapSampler, Tex);	// fetch color map
+	//float ShadowMap = OffsetLookup(ShadowMapSampler, ShadowMapUV, float2(0.0f, 0.0f));
+	float ShadowMap = tex2Dproj(ShadowMapSampler, ShadowMapUV).x;
+    
+    // value of shadow_map bigger or equal than depth value: return diffuse
+    //Color += (In.Depth - ShadowMap < 0.0f ) ? 0.0f : In.Diffuse;
+    float4 shadow = (Depth - ShadowMap < 0.0f ) ? 0.0f : 1.0f;
+
+    if(bHDR)
+    {
+		return EncodeRGBE8(shadow * tex2D(ColorMapSampler, Tex));	// fetch color map
+    }
+    else
+    {
+		return shadow * tex2D(ColorMapSampler, Tex);	// fetch color map
+    }
 }

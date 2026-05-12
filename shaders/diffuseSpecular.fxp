@@ -4,11 +4,38 @@ sampler ColorMapSampler = sampler_state{};
 texture BumpMap;
 sampler BumpMapSampler = sampler_state{};
 
+sampler ShadowMapSampler;
+
+bool bHDR : register(c29);
+
+// More accurate encoding
+#define EXP_BASE    (1.04)
+#define EXP_OFFSET  (64.0)
+// a^n = b
+#define LOG(a, b)   ( log((b)) / log((a)) )
+
+
+float4 EncodeRGBE8(in float3 rgb)
+{
+	float4 rgbe;
+
+    // determine the largest color component
+	float fMax = max(max(rgb.r, rgb.g), rgb.b);
+	
+	float fExp = floor( LOG(EXP_BASE, fMax) );
+
+	rgbe.a = clamp( (fExp + EXP_OFFSET) / 256, 0.0, 1.0 );
+	rgbe.rgb = rgb / pow(EXP_BASE, rgbe.a * 256 - EXP_OFFSET);
+
+	return rgbe;
+}
 
 // -------------------------------------------------------------
 // Pixel Shader (input channels):output channel
 // -------------------------------------------------------------
-float4 PS (float2 Tex: TEXCOORD0, float3 View : TEXCOORD1, float3 Light: TEXCOORD2) : COLOR
+float4 PS (float2 Tex: TEXCOORD0, float3 View : TEXCOORD1, float3 Light: TEXCOORD2,
+	float4 ShadowMapUV : TEXCOORD3,
+	float Depth : TEXCOORD4) : COLOR
 {
     float4 color = tex2D(ColorMapSampler, Tex);	// fetch color map
     float3 bumpNormal = 2 * (tex2D(BumpMapSampler, Tex) - 0.5); // bump map
@@ -25,5 +52,19 @@ float4 PS (float2 Tex: TEXCOORD0, float3 View : TEXCOORD1, float3 Light: TEXCOOR
     // gloss map in color.w restricts spec reflection
     float4 spec = min(pow(saturate(dot(Reflect, ViewDir)), 25), color.w);
 
-    return 0.2 * color + shadow * (color * diff + spec);	
+ 	//float ShadowMap = OffsetLookup(ShadowMapSampler, ShadowMapUV, float2(0.0f, 0.0f));
+	float ShadowMap = tex2Dproj(ShadowMapSampler, ShadowMapUV).x;
+    
+    // value of shadow_map bigger or equal than depth value: return diffuse
+    //Color += (In.Depth - ShadowMap < 0.0f ) ? 0.0f : In.Diffuse;
+    float4 s = (Depth - ShadowMap < 0.0f ) ? 0.0f : 1.0f;
+
+   if(bHDR)
+    {
+	    return EncodeRGBE8(0.2 * s * color + shadow * (color * diff + spec));
+    }
+    else
+    {
+		return 0.2 * s * color + shadow * (color * diff + spec);
+    }
 }

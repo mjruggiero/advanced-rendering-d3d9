@@ -24,6 +24,8 @@ public:
 		IDirect3DVertexBuffer9* m_pVB,
 		D3DXMATRIX* viewProj,
 		D3DXMATRIX* world,
+		D3DXMATRIX* lightViewProj,
+		D3DXMATRIX* scaleBias,
 		IDirect3DVertexDeclaration9* m_pVertexDeclaration);
 
 	int  LinkModel(const char* cTagName, MD3Model* mod);

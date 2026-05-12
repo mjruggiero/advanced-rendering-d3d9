@@ -29,13 +29,12 @@
 
 int iShaderProfile = 2;
 
-
 //---------------------------------------------------------------
 // MD3Model
 // 
 // Constructor
 //---------------------------------------------------------------
-MD3Model::MD3Model(void)
+MD3Model::MD3Model()
 {
 	iFrame = 0;
 	iNextFrame = 0;
@@ -61,7 +60,7 @@ MD3Model::MD3Model(void)
 // 
 // Destructor
 //---------------------------------------------------------------
-MD3Model::~MD3Model(void)
+MD3Model::~MD3Model()
 {
 }
 
@@ -430,9 +429,15 @@ void MD3Model::UpdateFrameTime(float time)
 //    is not interpolated.
 //
 //---------------------------------------------------------------------
-void MD3Model::DrawSkeleton(MD3Model* md3Model, IDirect3DDevice9* m_pDevice,
-	IDirect3DIndexBuffer9* m_pIB, IDirect3DVertexBuffer9* m_pVB,
-	D3DXMATRIX* matViewProj, D3DXMATRIX* matWorld, IDirect3DVertexDeclaration9* m_pVertexDeclaration)
+void MD3Model::DrawSkeleton(MD3Model* md3Model,
+	IDirect3DDevice9* m_pDevice,
+	IDirect3DIndexBuffer9* m_pIB,
+	IDirect3DVertexBuffer9* m_pVB,
+	D3DXMATRIX* matViewProj,
+	D3DXMATRIX* matWorld,
+	D3DXMATRIX* lightViewProj,
+	D3DXMATRIX* scaleBias,
+	IDirect3DVertexDeclaration9* m_pVertexDeclaration) 
 {
 	//-------------------------------------
 	// draw one of the up to four md3 models 
@@ -510,12 +515,53 @@ void MD3Model::DrawSkeleton(MD3Model* md3Model, IDirect3DDevice9* m_pDevice,
 		D3DXMatrixTranspose(&matTemp, matWorld);
 		m_pDevice->SetVertexShaderConstantF(0, (float*)&matTemp, 4);
 
+		// light view-projection matrix
+		D3DXMATRIX matLightViewProj;
+		D3DXMatrixMultiply(&matLightViewProj, matWorld, lightViewProj);
+
+		// light view-projection texture-adjusted matrix
+		D3DXMATRIX matLightViewProjTexAdj;
+		D3DXMatrixMultiply(&matLightViewProjTexAdj, &matLightViewProj, scaleBias);
+
+		D3DXMatrixTranspose(&matLightViewProj, &matLightViewProj);
+		D3DXMatrixTranspose(&matLightViewProjTexAdj, &matLightViewProjTexAdj);
+
+		m_pDevice->SetVertexShaderConstantF(16, reinterpret_cast<float*>(&matLightViewProj), 4);
+		m_pDevice->SetVertexShaderConstantF(20, reinterpret_cast<float*>(&matLightViewProjTexAdj), 4);
+
 		m_pDevice->SetVertexDeclaration(m_pVertexDeclaration);
 
 		//
 		// set vertex shader 
 		//
-		m_pDevice->SetVertexShader(md3Model->md3Meshes[iCurrMesh].pVertexShader[md3Model->md3Meshes[iCurrMesh].iChoosedShaderLevel[iShaderProfile]]);
+		//m_pDevice->SetVertexShader(md3Model->md3Meshes[iCurrMesh].pVertexShader[md3Model->md3Meshes[iCurrMesh].iChoosedShaderLevel[iShaderProfile]]);
+
+		const int activeProfile = iShaderProfile;
+		const int chosenShaderLevel =
+			md3Model->md3Meshes[iCurrMesh].iChoosedShaderLevel[activeProfile];
+
+		IDirect3DVertexShader9* vertexShader =
+			md3Model->md3Meshes[iCurrMesh].pVertexShader[chosenShaderLevel];
+
+		IDirect3DPixelShader9* pixelShader =
+			md3Model->md3Meshes[iCurrMesh].pPixelShader[chosenShaderLevel];
+
+		{
+			char msg[512] = {};
+			sprintf_s(
+				msg,
+				"MD3 DrawSkeleton mesh='%s' profile=%d shaderLevel=%d VS=%p PS=%p",
+				md3Model->md3Meshes[iCurrMesh].meshHeader.cName,
+				activeProfile,
+				chosenShaderLevel,
+				vertexShader,
+				pixelShader);
+
+			LOG(std::string(msg), Logger::LOG_DATA);
+		}
+
+		m_pDevice->SetVertexShader(vertexShader);
+		m_pDevice->SetPixelShader(pixelShader);
 
 		//
 		// texture caching
@@ -602,7 +648,16 @@ void MD3Model::DrawSkeleton(MD3Model* md3Model, IDirect3DDevice9* m_pDevice,
 			matTemp[15] = 1.0f; matTemp[3] = matTemp[7] = matTemp[11] = 0;
 
 			D3DXMatrixMultiply(&matTemp, &matTemp, matWorld);
-			DrawSkeleton(modelLink, m_pDevice, m_pIB, m_pVB, matViewProj, &matTemp, m_pVertexDeclaration);
+			DrawSkeleton(
+				modelLink,
+				m_pDevice,
+				m_pIB,
+				m_pVB,
+				matViewProj,
+				&matTemp,
+				lightViewProj,
+				scaleBias,
+				m_pVertexDeclaration);
 		}
 	}
 }

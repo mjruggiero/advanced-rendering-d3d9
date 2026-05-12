@@ -19,6 +19,9 @@ float4x4 matWorld			:register(c0);
 float4 LightDir				:register(c12);
 float4 vecEye				:register(c24);
 float4 IntPolFactor			:register(c37);
+float4x4 matLightViewProj		:register(c16);	
+float4x4 matLightViewProjTexAdj	:register(c20);	
+float4 fFarNear					:register(c34);
 
 
 
@@ -31,6 +34,8 @@ struct VS_OUTPUT
     float2 Tex : TEXCOORD0;
     float3 View : TEXCOORD1;
     float3 Light : TEXCOORD2;
+   	float4 ShadowMapUV	: TEXCOORD3;
+	float Depth			: TEXCOORD4;
 };
 
 
@@ -81,6 +86,17 @@ VS_OUTPUT VS(float4 Pos : POSITION : register(v0),
     Out.Light.xyz = mul(worldToTangentSpace, Light); 	// L
     float3 Viewer = vecEye - PosWorld;						// V
     Out.View = mul(worldToTangentSpace, Viewer);
+
+	// transform projected textures
+	// == mLightViewProj * texture adjustment matrix
+	// mScale * mTransform * mRotate * mView * mProj * mScaleBias
+	Out.ShadowMapUV = mul(Pos, matLightViewProjTexAdj);
+	
+	// measure distance between light and point
+	// transform light source
+	// mScale * mTransform * mRotate * mView * mProj
+	float4 Position = mul(Pos, matLightViewProj);
+	Out.Depth = -(((Position.z + fFarNear.y) / (fFarNear.x - fFarNear.y)) * Position.w) + 2.079f;
     
    return Out;
 }

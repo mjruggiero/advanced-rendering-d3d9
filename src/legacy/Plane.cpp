@@ -332,7 +332,7 @@ HRESULT Plane::RestoreDeviceObjects()
 		return E_FAIL;
 	}
 
-	hr = D3DXCreateTextureFromFileA(m_pDevice, "WallSandstone.tga", &m_pTexture);
+	hr = D3DXCreateTextureFromFileA(m_pDevice, "../media/WallSandstone.tga", &m_pTexture);
 	if (FAILED(hr))
 	{
 		LOG("Could not load plane texture: WallSandstone.tga", Logger::LOG_ERR);

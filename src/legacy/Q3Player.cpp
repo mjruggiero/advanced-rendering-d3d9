@@ -11,21 +11,25 @@
 //-------------------------------------------------------
 // Q3Player
 //-------------------------------------------------------
-Q3Player::Q3Player(void)
+Q3Player::Q3Player()
 {
 	playerAnimLower = LEGS_IDLE;
 	playerAnimUpper = TORSO_STAND;
 
 	m_pVB = NULL;
 	m_pIB = NULL;
+	m_pVertexDeclaration = NULL;
 
-
+	D3DXMatrixIdentity(&matViewProj);
+	D3DXMatrixIdentity(&matWorld);
+	D3DXMatrixIdentity(&matLightViewProj);
+	D3DXMatrixIdentity(&matScaleBias);
 }
 
 //-------------------------------------------------------
 // ~Q3Player
 //-------------------------------------------------------
-Q3Player::~Q3Player(void)
+Q3Player::~Q3Player()
 {
 }
 
@@ -674,7 +678,16 @@ void Q3Player::DeleteWeaponGeometry()
 //------------------------------------------------------------------------------
 void Q3Player::Draw(IDirect3DDevice9* m_pDevice)
 {
-	md3Lower.DrawSkeleton(&md3Lower, m_pDevice, m_pIB, m_pVB, &matViewProj, &matWorld, m_pVertexDeclaration);
+	md3Lower.DrawSkeleton(
+		&md3Lower,
+		m_pDevice,
+		m_pIB,
+		m_pVB,
+		&matViewProj,
+		&matWorld,
+		&matLightViewProj,
+		&matScaleBias,
+		m_pVertexDeclaration);
 
 	m_pDevice->SetVertexShader(NULL);
 	m_pDevice->SetPixelShader(NULL);

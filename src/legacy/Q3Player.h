@@ -45,6 +45,8 @@ public:
 
 	void SetWorldMatrix(D3DXMATRIX& matW) { matWorld = matW; }
 	void SetViewProjMatrix(D3DXMATRIX matVP) { matViewProj = matVP; }
+	void SetLightViewProjMatrix(const D3DXMATRIX& matLightVP) { matLightViewProj = matLightVP; }
+	void SetScaleBiasMatrix(const D3DXMATRIX& matScaleBiasIn) { matScaleBias = matScaleBiasIn; }
 
 	MD3Model				md3Lower, md3Upper, md3Head, md3Weapon;
 
@@ -61,4 +63,6 @@ private:
 
 	D3DXMATRIX matViewProj;
 	D3DXMATRIX matWorld;
+	D3DXMATRIX matLightViewProj;
+	D3DXMATRIX matScaleBias;
 };

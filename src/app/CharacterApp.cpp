@@ -3,12 +3,46 @@
 #include "../framework/FrameworkLog.h"
 #include "../framework/D3D9StateBlock.h"
 #include "../legacy/logger.h"
+#include "../legacy/D3D9Compat.h"
 
 #include <d3dx9.h>
 
 #include <algorithm>
 
 extern int iShaderProfile;
+
+namespace
+{
+	class ScopedLegacyShaderProfile
+	{
+	public:
+		explicit ScopedLegacyShaderProfile(int profile)
+			: m_previous(iShaderProfile)
+		{
+			iShaderProfile = profile;
+		}
+
+		~ScopedLegacyShaderProfile()
+		{
+			iShaderProfile = m_previous;
+		}
+
+	private:
+		int m_previous = 0;
+	};
+
+	struct CustomVertex
+	{
+		float x, y;
+	};
+
+	D3DVERTEXELEMENT9 decl[] =
+	{
+		// stream, offset, type, method, semantic type (for example normal), ?
+		{0, 0, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0},
+		D3DDECL_END()
+	};
+}
 
 Framework::ApplicationConfig CharacterApp::GetConfig() const
 {
@@ -73,6 +107,7 @@ bool CharacterApp::Initialize()
 	m_lightSphere = std::make_unique<D3DSphere>();
 	m_player = std::make_unique<Q3Player>();
 	m_animationUi = std::make_unique<UIAnimation>();
+	m_plane = std::make_unique<Plane>();
 
 	// Load model
 	m_player->LoadPlayerGeometry(m_modelPath.c_str());
@@ -118,6 +153,10 @@ bool CharacterApp::CreateDeviceResources()
 	dwShaderFlags |= D3DXSHADER_FORCE_PS_SOFTWARE_NOOPT;
 #endif
 
+	IDirect3DDevice9* device = Device();
+	if (!device)
+		return false;
+
 	m_animationUi->OnCreateDevice(Device());		// user interface animations
 	// initialize sphere
 	m_lightSphere->OnCreateDevice(Device());
@@ -128,6 +167,46 @@ bool CharacterApp::CreateDeviceResources()
 
 	m_player->LoadSkins(Device(), m_modelPath.c_str(), m_skinName.c_str());
 	m_player->LoadWeaponSkins(Device(), m_weaponPath.c_str(), m_weaponSkinName.c_str());	// load skin of weapon
+
+	m_plane->InitDeviceObjects(Device());
+	m_plane->LoadShaders(Device(), "plane_default.sha", "");
+
+	if (FAILED(device->CreateVertexDeclaration(decl, &m_pDecl)))
+	{
+		Framework::FrameworkLog::WriteError("Failed to create HDR fullscreen vertex declaration");
+		return false;
+	}
+
+	ID3DXBuffer* errorBuffer = nullptr;
+	HRESULT hr = D3DXCreateEffectFromFileA(
+		device,
+		"shaders/HDR.fx",
+		nullptr,
+		nullptr,
+		D3DXSHADER_DEBUG,
+		nullptr,
+		&m_pEffect,
+		&errorBuffer);
+
+	if (FAILED(hr))
+	{
+		if (errorBuffer)
+		{
+			Framework::FrameworkLog::WriteError(
+				std::string("Failed to create HDR effect: ") +
+				static_cast<const char*>(errorBuffer->GetBufferPointer()));
+			errorBuffer->Release();
+		}
+		else
+		{
+			Framework::FrameworkLog::WriteError("Failed to create HDR effect: shaders/HDR.fx");
+		}
+
+		return false;
+	}
+
+	if (errorBuffer)
+		errorBuffer->Release();
 
 	return true;
 }
@@ -145,6 +224,9 @@ void CharacterApp::DestroyDeviceResources()
 	if (m_lightSphere)
 		m_lightSphere->OnDestroyDevice();
 
+	if (m_plane)
+		m_plane->DeleteDeviceObjects();
+
 	if (m_player)
 	{
 		// free model/weapon shaders
@@ -155,6 +237,8 @@ void CharacterApp::DestroyDeviceResources()
 		m_player->FreeWeaponSkins();
 	}
 
+	SAFE_RELEASE(m_pDecl);
+	SAFE_RELEASE(m_pEffect);
 }
 
 bool CharacterApp::CreateResetResources()
@@ -169,7 +253,6 @@ bool CharacterApp::CreateResetResources()
 	device->SetRenderState(D3DRS_LIGHTING, FALSE);
 	device->SetRenderState(D3DRS_CULLMODE, D3DCULL_CCW);
 
-
 	if (!m_textRenderer.CreateResetResources(device))
 		return false;
 
@@ -178,6 +261,159 @@ bool CharacterApp::CreateResetResources()
 
 	// create dynamic vertex and index buffer
 	m_player->CreateVertexNIndexBuffer(device);
+
+	m_plane->Create(100.0f, 100.0f);
+	m_plane->RestoreDeviceObjects();
+
+	HRESULT hr = device->CreateTexture(
+		ShadowMapSize,
+		ShadowMapSize,
+		1,
+		D3DUSAGE_RENDERTARGET,
+		ShadowMapFormat,
+		D3DPOOL_DEFAULT,
+		&m_shadowMap,
+		nullptr);
+
+	if (FAILED(hr))
+	{
+		Framework::FrameworkLog::WriteError("Failed to create shadow map texture");
+		return false;
+	}
+
+	hr = m_shadowMap->GetSurfaceLevel(0, &m_shadowMapSurface);
+	if (FAILED(hr))
+	{
+		Framework::FrameworkLog::WriteError("Failed to get shadow map surface");
+		return false;
+	}
+
+	hr = device->CreateDepthStencilSurface(
+		ShadowMapSize,
+		ShadowMapSize,
+		D3DFMT_D24S8,
+		D3DMULTISAMPLE_NONE,
+		0,
+		TRUE,
+		&m_shadowDepthSurface,
+		nullptr);
+
+	if (FAILED(hr))
+	{
+		Framework::FrameworkLog::WriteError("Failed to create shadow depth surface");
+		return false;
+	}
+
+	const UINT backBufferWidth = BackBufferWidth();
+	const UINT backBufferHeight = BackBufferHeight();
+
+	hr = device->CreateTexture(
+		backBufferWidth,
+		backBufferHeight,
+		1,
+		D3DUSAGE_RENDERTARGET,
+		D3DFMT_A8R8G8B8,
+		D3DPOOL_DEFAULT,
+		&m_pRenderTarget,
+		nullptr);
+
+	if (FAILED(hr))
+	{
+		Framework::FrameworkLog::WriteError("Failed to create HDR full-resolution render target");
+		return false;
+	}
+
+	hr = m_pRenderTarget->GetSurfaceLevel(0, &m_pSurface);
+	if (FAILED(hr))
+	{
+		Framework::FrameworkLog::WriteError("Failed to get HDR full-resolution render target surface");
+		return false;
+	}
+
+	hr = device->CreateTexture(
+		backBufferWidth / 4,
+		backBufferHeight / 4,
+		1,
+		D3DUSAGE_RENDERTARGET,
+		D3DFMT_A8R8G8B8,
+		D3DPOOL_DEFAULT,
+		&m_pRenderTarget2,
+		nullptr);
+
+	if (FAILED(hr))
+	{
+		Framework::FrameworkLog::WriteError("Failed to create HDR bloom render target 2");
+		return false;
+	}
+
+	hr = m_pRenderTarget2->GetSurfaceLevel(0, &m_pSurface2);
+	if (FAILED(hr))
+	{
+		Framework::FrameworkLog::WriteError("Failed to get HDR bloom surface 2");
+		return false;
+	}
+
+	hr = device->CreateTexture(
+		backBufferWidth / 4,
+		backBufferHeight / 4,
+		1,
+		D3DUSAGE_RENDERTARGET,
+		D3DFMT_A8R8G8B8,
+		D3DPOOL_DEFAULT,
+		&m_pRenderTarget3,
+		nullptr);
+
+	if (FAILED(hr))
+	{
+		Framework::FrameworkLog::WriteError("Failed to create HDR bloom render target 3");
+		return false;
+	}
+
+	hr = m_pRenderTarget3->GetSurfaceLevel(0, &m_pSurface3);
+	if (FAILED(hr))
+	{
+		Framework::FrameworkLog::WriteError("Failed to get HDR bloom surface 3");
+		return false;
+	}
+
+	hr = device->CreateVertexBuffer(
+		4 * sizeof(CustomVertex),
+		D3DUSAGE_WRITEONLY,
+		0,
+		D3DPOOL_DEFAULT,
+		&m_pImageVB,
+		nullptr);
+
+	if (FAILED(hr))
+	{
+		Framework::FrameworkLog::WriteError("Failed to create HDR fullscreen image vertex buffer");
+		return false;
+	}
+
+	CustomVertex* vertices = nullptr;
+	hr = m_pImageVB->Lock(0, 4 * sizeof(CustomVertex), reinterpret_cast<void**>(&vertices), 0);
+	if (FAILED(hr))
+	{
+		Framework::FrameworkLog::WriteError("Failed to lock HDR fullscreen image vertex buffer");
+		return false;
+	}
+
+	vertices[0].x = -1.0f;
+	vertices[0].y = -1.0f;
+
+	vertices[1].x = -1.0f;
+	vertices[1].y = 1.0f;
+
+	vertices[2].x = 1.0f;
+	vertices[2].y = -1.0f;
+
+	vertices[3].x = 1.0f;
+	vertices[3].y = 1.0f;
+
+	m_pImageVB->Unlock();
+
+	if (m_pEffect)
+		m_pEffect->OnResetDevice();
 
 	// Setup the camera's projection parameters
 	const float fAspectRatio = BackBufferAspectRatio();
@@ -194,9 +430,15 @@ bool CharacterApp::CreateResetResources()
 	device->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
 	device->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
 
-	device->SetSamplerState(1, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+	device->SetSamplerState(1, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
 	device->SetSamplerState(1, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
 	device->SetSamplerState(1, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
+
+	device->SetSamplerState(2, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+	device->SetSamplerState(2, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+	device->SetSamplerState(2, D3DSAMP_MIPFILTER, D3DTEXF_NONE);
+	device->SetSamplerState(2, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+	device->SetSamplerState(2, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
 
 	device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
 	device->SetRenderState(D3DRS_LIGHTING, FALSE);
@@ -214,6 +456,23 @@ void CharacterApp::DestroyResetResources()
 {
 	Framework::FrameworkLog::WriteInfo("CharacterApp DestroyResetResources");
 
+	SAFE_RELEASE(m_shadowDepthSurface);
+	SAFE_RELEASE(m_shadowMapSurface);
+	SAFE_RELEASE(m_shadowMap);
+
+	if (m_pEffect)
+		m_pEffect->OnLostDevice();
+
+	SAFE_RELEASE(m_pSurface);
+	SAFE_RELEASE(m_pSurface2);
+	SAFE_RELEASE(m_pSurface3);
+
+	SAFE_RELEASE(m_pImageVB);
+
+	SAFE_RELEASE(m_pRenderTarget);
+	SAFE_RELEASE(m_pRenderTarget2);
+	SAFE_RELEASE(m_pRenderTarget3);
+
 	// Release resources created in CreateResetResources.
 	// D3DXFont/D3DXSprite DestroyResetResources calls also belong here.
 	m_textRenderer.DestroyResetResources();
@@ -223,6 +482,9 @@ void CharacterApp::DestroyResetResources()
 
 	if (m_lightSphere)
 		m_lightSphere->OnLostDevice();
+
+	if (m_plane)
+		m_plane->InvalidateDeviceObjects();
 
 	if (m_player)
 	{
@@ -296,6 +558,40 @@ void CharacterApp::Update(float deltaSeconds)
 		m_wireframe = !m_wireframe;
 	}
 
+	// turn HDR on/off
+	if (m_keys['H'])
+	{
+		m_keys['H'] = NULL;
+		m_bHDR = !m_bHDR;
+	}
+
+	// turn shadow map preview on/off
+	if (m_keys['M'])
+	{
+		m_keys['M'] = FALSE;
+		m_showShadowMap = !m_showShadowMap;
+	}
+
+	if (m_keys['R'])
+	{
+		//m_keys['R'] = NULL;
+		m_fExposureLevel += 10.0 * deltaSeconds;
+	}
+	else if (m_keys['F'])
+	{
+		//m_keys['F'] = NULL;
+		m_fExposureLevel -= 10.0 * deltaSeconds;
+	}
+
+	if (m_fExposureLevel > 32.0f)
+	{
+		m_fExposureLevel = 32.0;
+	}
+	if (m_fExposureLevel < 1.0)
+	{
+		m_fExposureLevel = 1.0;
+	}
+
 	// choose animations
 	if (m_showAnimationUi)
 	{
@@ -347,8 +643,45 @@ void CharacterApp::Update(float deltaSeconds)
 	}
 
 	m_appTimeSeconds += deltaSeconds;
-
 	m_player->Update(m_appTimeSeconds);
+
+	m_lightViewPosition = D3DXVECTOR3(
+		50.0f * sinf(m_appTimeSeconds),
+		100.0f,
+		50.0f * cosf(m_appTimeSeconds));
+
+	D3DXVECTOR3 lightLookAt(0.0f, 0.0f, 0.0f);
+	D3DXVECTOR3 lightUp(0.0f, 1.0f, 0.0f);
+
+	D3DXMATRIX lightView;
+	D3DXMATRIX lightProjection;
+
+	D3DXMatrixLookAtLH(
+		&lightView,
+		&m_lightViewPosition,
+		&lightLookAt,
+		&lightUp);
+
+	D3DXMatrixPerspectiveFovLH(
+		&lightProjection,
+		D3DX_PI / 2.0f,
+		1.0f,
+		ShadowNearPlane,
+		ShadowFarPlane);
+
+	m_lightViewProjection = lightView * lightProjection;
+
+	const float offsetX = 0.5f + (0.5f / static_cast<float>(ShadowMapSize));
+	const float offsetY = 0.5f + (0.5f / static_cast<float>(ShadowMapSize));
+
+	m_scaleBias = D3DXMATRIX(
+		0.5f, 0.0f, 0.0f, 0.0f,
+		0.0f, -0.5f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		offsetX, offsetY, 0.5f, 1.0f);
+
+	m_player->SetLightViewProjMatrix(m_lightViewProjection);
+	m_player->SetScaleBiasMatrix(m_scaleBias);
 }
 
 void CharacterApp::Render(Framework::RenderContext& context)
@@ -357,21 +690,412 @@ void CharacterApp::Render(Framework::RenderContext& context)
 	if (!device)
 		return;
 
+	//
+	// 1. Render shadow map.
+	// RenderShadowMap owns shadow RT/depth switching and restores the previous target.
+	//
+	if (!RenderShadowMap())
+	{
+		Framework::FrameworkLog::WriteError("RenderShadowMap failed");
+	}
+
+	//
+	// 2. Save current backbuffer for HDR restore.
+	//
+	IDirect3DSurface9* oldBackBuffer = nullptr;
+	if (FAILED(device->GetRenderTarget(0, &oldBackBuffer)))
+		return;
+
+	//
+	// 3. Choose main scene target.
+	//
+	D3DXVECTOR4 hdrEnable(0.0f, 0.0f, 0.0f, 0.0f);
+
+	if (m_bHDR)
+	{
+		device->SetRenderTarget(0, m_pSurface);
+		device->Clear(
+			0,
+			nullptr,
+			D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
+			0x000000ff,
+			1.0f,
+			0);
+
+		hdrEnable = D3DXVECTOR4(1.0f, 0.0f, 0.0f, 0.0f);
+	}
+	else
+	{
+		device->SetRenderTarget(0, oldBackBuffer);
+		device->Clear(
+			0,
+			nullptr,
+			D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
+			0x000000ff,
+			1.0f,
+			0);
+
+		hdrEnable = D3DXVECTOR4(0.0f, 0.0f, 0.0f, 0.0f);
+	}
+
+	//
+	// 4. Restore normal scene render state, then bind shadow/HDR constants.
+	//
 	context.SetDefault3DState();
 	context.SetWireframe(m_wireframe);
 
-	// Render the character model.
-	if (m_player)
-		m_player->Draw(device);
+	device->SetTexture(2, m_shadowMap);
+	device->SetPixelShaderConstantF(29, reinterpret_cast<const float*>(&hdrEnable), 1);
 
-	// Render the point-light marker sphere.
+	RenderMeshes();
+
+	device->SetTexture(2, nullptr);
+
+	//
+	// 5. Post-process HDR back to backbuffer.
+	//
+	if (m_bHDR)
+	{
+		RenderScalePass();
+		RenderBloomPass();
+
+		device->SetRenderTarget(0, oldBackBuffer);
+
+		RenderScreenPass();
+	}
+
+	SAFE_RELEASE(oldBackBuffer);
+
+	//
+	// 6. Debug/overlay.
+	//
 	if (m_moveLight && m_lightSphere)
 		m_lightSphere->RenderSphere(device, m_viewProjection);
 
-	// Render legacy HUD/text overlay.
+	if (m_showShadowMap)
+		DrawShadowMapPreview();
+
 	RenderText();
 }
 
+void CharacterApp::RenderMeshes()
+{
+	IDirect3DDevice9* device = Device();
+	if (!device)
+		return;
+
+	D3DXMATRIX modelLightVP = m_world * m_lightViewProjection;
+	D3DXMATRIX modelLightTex = modelLightVP * m_scaleBias;
+
+	D3DXMatrixTranspose(&modelLightVP, &modelLightVP);
+	D3DXMatrixTranspose(&modelLightTex, &modelLightTex);
+
+	device->SetVertexShaderConstantF(16, reinterpret_cast<const float*>(&modelLightVP), 4);
+	device->SetVertexShaderConstantF(20, reinterpret_cast<const float*>(&modelLightTex), 4);
+	D3DXVECTOR4 planeConstants(ShadowFarPlane, ShadowNearPlane, 0.0f, 0.0f);
+	device->SetVertexShaderConstantF(
+		34,
+		reinterpret_cast<const float*>(&planeConstants),
+		1);
+
+	if (m_player)
+	{
+		//m_player->SetShaderProfile(m_shaderProfile);
+		ScopedLegacyShaderProfile visibleProfile(m_shaderProfile);
+		m_player->Draw(device);
+	}
+
+	D3DXMATRIX planeLightVP = m_lightViewProjection;
+	D3DXMATRIX planeLightTex = planeLightVP * m_scaleBias;
+
+	D3DXMatrixTranspose(&planeLightVP, &planeLightVP);
+	D3DXMatrixTranspose(&planeLightTex, &planeLightTex);
+
+	device->SetVertexShaderConstantF(16, reinterpret_cast<const float*>(&planeLightVP), 4);
+	device->SetVertexShaderConstantF(20, reinterpret_cast<const float*>(&planeLightTex), 4);
+	device->SetVertexShaderConstantF(
+		34,
+		reinterpret_cast<const float*>(&planeConstants),
+		1);
+
+	if (m_plane)
+	{
+		m_plane->SetShaderProfile(0);
+		m_plane->Render(m_viewProjection);
+	}
+}
+
+bool CharacterApp::RenderShadowMap()
+{
+	IDirect3DDevice9* device = Device();
+	if (!device || !m_shadowMapSurface || !m_shadowDepthSurface)
+		return false;
+
+	IDirect3DSurface9* oldRenderTarget = nullptr;
+	IDirect3DSurface9* oldDepthSurface = nullptr;
+	D3DVIEWPORT9 oldViewport = {};
+
+	if (FAILED(device->GetRenderTarget(0, &oldRenderTarget)))
+		return false;
+
+	if (FAILED(device->GetDepthStencilSurface(&oldDepthSurface)))
+	{
+		SAFE_RELEASE(oldRenderTarget);
+		return false;
+	}
+
+	device->GetViewport(&oldViewport);
+
+	HRESULT hr = device->SetRenderTarget(0, m_shadowMapSurface);
+	if (FAILED(hr))
+	{
+		SAFE_RELEASE(oldDepthSurface);
+		SAFE_RELEASE(oldRenderTarget);
+		return false;
+	}
+
+	hr = device->SetDepthStencilSurface(m_shadowDepthSurface);
+	if (FAILED(hr))
+	{
+		device->SetRenderTarget(0, oldRenderTarget);
+		device->SetViewport(&oldViewport);
+		SAFE_RELEASE(oldDepthSurface);
+		SAFE_RELEASE(oldRenderTarget);
+		return false;
+	}
+
+	D3DVIEWPORT9 shadowViewport = {};
+	shadowViewport.X = 0;
+	shadowViewport.Y = 0;
+	shadowViewport.Width = ShadowMapSize;
+	shadowViewport.Height = ShadowMapSize;
+	shadowViewport.MinZ = 0.0f;
+	shadowViewport.MaxZ = 1.0f;
+	device->SetViewport(&shadowViewport);
+
+	device->Clear(
+		0,
+		nullptr,
+		D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
+		0xffffffff,
+		1.0f,
+		0);
+
+	D3DXVECTOR4 planeConstants(ShadowFarPlane, ShadowNearPlane, 0.0f, 0.0f);
+	device->SetVertexShaderConstantF(
+		34,
+		reinterpret_cast<const float*>(&planeConstants),
+		1);
+
+	if (m_player)
+	{
+		ScopedLegacyShaderProfile shadowProfile(3);
+		m_player->Draw(device);
+	}
+
+	if (m_plane)
+	{
+		D3DXMATRIX lightVP = m_lightViewProjection;
+		D3DXMatrixTranspose(&lightVP, &lightVP);
+
+		device->SetVertexShaderConstantF(16, reinterpret_cast<const float*>(&lightVP), 4);
+
+		m_plane->SetShaderProfile(2);
+
+		// See next section.
+		m_plane->Render(m_viewProjection);
+	}
+
+	device->SetDepthStencilSurface(oldDepthSurface);
+	device->SetRenderTarget(0, oldRenderTarget);
+	device->SetViewport(&oldViewport);
+
+	SAFE_RELEASE(oldDepthSurface);
+	SAFE_RELEASE(oldRenderTarget);
+
+	return true;
+}
+
+void CharacterApp::DrawShadowMapPreview()
+{
+	IDirect3DDevice9* device = Device();
+	if (!device || !m_shadowMap)
+		return;
+
+	Framework::D3D9ScopedStateBlock restoreState(device);
+
+	struct TVertex
+	{
+		float x, y, z, rhw;
+		float u, v;
+	};
+
+	constexpr DWORD FVF = D3DFVF_XYZRHW | D3DFVF_TEX1;
+	const float scale = 256.0f;
+
+	const TVertex vertices[4] =
+	{
+		{ 0.0f,  0.0f,  0.0f, 1.0f, 0.0f, 0.0f },
+		{ scale, 0.0f,  0.0f, 1.0f, 1.0f, 0.0f },
+		{ scale, scale, 0.0f, 1.0f, 1.0f, 1.0f },
+		{ 0.0f,  scale, 0.0f, 1.0f, 0.0f, 1.0f },
+	};
+
+	device->SetRenderState(D3DRS_ZENABLE, FALSE);
+	device->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+	device->SetRenderState(D3DRS_LIGHTING, FALSE);
+	device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+	device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+
+	device->SetVertexShader(nullptr);
+	device->SetPixelShader(nullptr);
+	device->SetVertexDeclaration(nullptr);
+
+	device->SetTexture(0, m_shadowMap);
+	device->SetTexture(1, nullptr);
+	device->SetTexture(2, nullptr);
+
+	device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+	device->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+	device->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+	device->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+
+	device->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_POINT);
+	device->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_POINT);
+	device->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_NONE);
+	device->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+	device->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+
+	device->SetFVF(FVF);
+	device->DrawPrimitiveUP(D3DPT_TRIANGLEFAN, 2, vertices, sizeof(TVertex));
+}
+
+bool CharacterApp::RenderScalePass()
+{
+	IDirect3DDevice9* device = Device();
+	if (!device || !m_shadowMap)
+		return false;
+
+	// 2nd pass
+	device->SetRenderTarget(0, m_pSurface2);
+
+	m_pEffect->SetTechnique("ScaleBuffer");
+	device->SetVertexDeclaration(m_pDecl);
+
+	// sample down render target
+	m_pEffect->SetTexture("RenderMap", m_pRenderTarget);
+
+	m_pEffect->Begin(NULL, 0);
+
+	m_pEffect->BeginPass(0);
+	device->SetStreamSource(0, m_pImageVB, 0, sizeof(CustomVertex));
+	device->DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, 2);
+	m_pEffect->EndPass();
+
+	m_pEffect->End();
+
+	//D3DXSaveTextureToFile("test2.bmp", D3DXIFF_BMP, m_pRenderTarget2, NULL);
+
+	return S_OK;
+}
+
+bool CharacterApp::RenderBloomPass()
+{
+	IDirect3DDevice9* device = Device();
+	if (!device || !m_shadowMap)
+		return false;
+
+	// 3rd - 11th pass
+	// Bloom filter
+	m_pEffect->SetTechnique("Bloom");
+	device->SetVertexDeclaration(m_pDecl);
+
+	// pixel size to convert to texel space
+	float fPixelSizeX = -1.0f / (BackBufferWidth() / 4.0f);
+	float fPixelSizeY = 1.0f / (BackBufferHeight() / 4.0f);
+	D3DXVECTOR4 pixelSizes(fPixelSizeX, fPixelSizeY, 1.0f, 1.0f);
+	m_pEffect->SetVector("pixelSize", &pixelSizes);
+
+	device->SetStreamSource(0, m_pImageVB, 0, sizeof(CustomVertex));
+
+	// Scale number of iterations for bloom filter
+	// Provide even numbers, because of the ping-pong buffer
+	int iteration = 8;
+	/*
+	if ((m_d3dsdBackBuffer.Width) <= 800.0f)
+	iteration = 4;
+	else if ((m_d3dsdBackBuffer.Width) <= 1024.0f)
+	iteration = 6;
+	else if ((m_d3dsdBackBuffer.Width) >= 1024.0f)
+	iteration = 8;
+	*/
+
+	// eight passes for bloom filter
+	for (int pass = 0; pass < iteration; pass++)
+	{
+		// ping-pong between render targets
+		if (m_bOne)
+		{
+			m_pEffect->SetTexture("RenderMap", m_pRenderTarget2);
+			device->SetRenderTarget(0, m_pSurface3);
+			m_bOne = FALSE;
+		}
+		else
+		{
+			m_pEffect->SetTexture("RenderMap", m_pRenderTarget3);
+			device->SetRenderTarget(0, m_pSurface2);
+			m_bOne = TRUE;
+		}
+
+		m_pEffect->SetFloat("fIteration", (float)pass);
+
+		m_pEffect->Begin(NULL, 0);
+
+		m_pEffect->BeginPass(0);
+		device->DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, 2);
+		m_pEffect->EndPass();
+
+		m_pEffect->End();
+	}
+
+	//D3DXSaveTextureToFile("test3.bmp", D3DXIFF_BMP, m_pRenderTarget3, NULL);
+
+	return S_OK;
+}
+
+bool CharacterApp::RenderScreenPass()
+{
+	IDirect3DDevice9* device = Device();
+	if (!device || !m_shadowMap)
+		return false;
+
+	// 12th pass
+	// Change the rendertarget back to the main backbuffer
+	//m_pd3dDevice->SetRenderTarget(0, m_pBackBuffer);
+
+	// Clear the viewport
+	//m_pd3dDevice->Clear( 0L, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER, 0xffffffff, 1.0f, 0L );
+
+	m_pEffect->SetTechnique("Screenblit");
+	device->SetVertexDeclaration(m_pDecl);
+
+	//D3DXSaveTextureToFile("test4.bmp", D3DXIFF_BMP, m_pRenderTarget, NULL);
+	//D3DXSaveTextureToFile("test5.bmp", D3DXIFF_BMP, m_pRenderTarget2, NULL);
+	m_pEffect->SetTexture("FullResMap", m_pRenderTarget);
+	m_pEffect->SetTexture("RenderMap", m_pRenderTarget2);
+	m_pEffect->SetFloat("ExposureLevel", m_fExposureLevel);
+
+	m_pEffect->Begin(NULL, 0);
+
+	m_pEffect->BeginPass(0);
+	device->SetStreamSource(0, m_pImageVB, 0, sizeof(CustomVertex));
+	device->DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, 2);
+	m_pEffect->EndPass();
+
+	m_pEffect->End();
+
+	return S_OK;
+}
 
 void CharacterApp::RenderText()
 {
@@ -434,7 +1158,10 @@ void CharacterApp::RenderText()
 			L"+/- on Num Pad\n"
 			L"G\n"
 			L"W\n"
-			L"P - Up/Down/Left/Right\n");
+			L"P - Up/Down/Left/Right\n"
+			L"M -\n"
+			L"R/F\n"
+			L"H\n");
 
 		m_textRenderer.DrawLine(
 			Framework::D3D9TextRenderer::FontSize::Small,
@@ -448,7 +1175,10 @@ void CharacterApp::RenderText()
 			L"- Shader Profile #%d\n"
 			L"- Toggle Weapon\n"
 			L"- Toggle Wireframe Mode\n"
-			L"- Toggle - Move Point Light\n",
+			L"- Toggle - Move Point Light\n"
+			L"- Toggle Shadow Map Preview\n"
+			L"- Increase/Decrease Exposure Level\n"
+			L"- Toggle HDR rendering\n",
 			m_shaderProfile);
 
 		m_textRenderer.DrawLine(
@@ -480,6 +1210,14 @@ void CharacterApp::RenderText()
 			32,
 			white,
 			L"A - Animations\nO - Options");
+		WCHAR strExposure[256] = {};
+		swprintf_s(strExposure, L"Exposure Level %.3f", m_fExposureLevel);
+		m_textRenderer.DrawLine(
+			Framework::D3D9TextRenderer::FontSize::Small,
+			2,
+			64,
+			white,
+			strExposure);
 	}
 
 	m_textRenderer.End();

@@ -13,10 +13,12 @@
 // dcl_tangent1 v9
 
 
-float4x4 matWorldViewProj	:register(c8);	
-float4x4 matWorld			:register(c0);	
-float4 LightDir				:register(c12);
-
+float4x4 matWorldViewProj		:register(c8);	
+float4x4 matWorld				:register(c0);	
+float4 LightDir					:register(c12);
+float4x4 matLightViewProj		:register(c16);	
+float4x4 matLightViewProjTexAdj	:register(c20);	
+float4 fFarNear					:register(c34);
 
 // -------------------------------------------------------------
 // Output channels
@@ -26,7 +28,9 @@ struct VS_OUTPUT
     float4 Pos  : POSITION;
     float3 Light : COLOR0;
     float2 Tex : TEXCOORD0;
-    float2 Tex1 : TEXCOORD1;    
+    float2 Tex1 : TEXCOORD1;
+   	float4 ShadowMapUV	: TEXCOORD2;
+	float Depth			: TEXCOORD3;
 };
 
 
@@ -56,6 +60,17 @@ VS_OUTPUT VS(float4 Pos : POSITION : register(v0),
     
     Out.Tex = Tex.xy;
     Out.Tex1 = Tex.xy;    
+
+	// transform projected textures
+	// == mLightViewProj * texture adjustment matrix
+	// mScale * mTransform * mRotate * mView * mProj * mScaleBias
+	Out.ShadowMapUV = mul(Pos, matLightViewProjTexAdj);
+	
+	// measure distance between light and point
+	// transform light source
+	// mScale * mTransform * mRotate * mView * mProj
+	float4 Position = mul(Pos, matLightViewProj);
+	Out.Depth = -(((Position.z + fFarNear.y) / (fFarNear.x - fFarNear.y)) * Position.w) + 5.079f;
     
    return Out;
 }

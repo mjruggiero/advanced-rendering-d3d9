@@ -1,13 +1,68 @@
 sampler ColorMapSampler;
 sampler BumpMapSampler;
+sampler ShadowMapSampler;
+
+bool bHDR : register(c29);
+
+// hardcoded for 1k shadow map
+const float2 TexelSize = {1.0f/2048.0f, 1.0f/2048.0f};
+
+float OffsetLookup(sampler2D map, float4 loc, float2 offset)
+{
+	float2 TexcoordProj = (loc.xy / loc.w) + TexelSize;
+
+	return tex2D(map, float2(TexcoordProj + (offset * TexelSize)));
+}
+
+// More accurate encoding
+#define EXP_BASE    (1.04)
+#define EXP_OFFSET  (64.0)
+// a^n = b
+#define LOG(a, b)   ( log((b)) / log((a)) )
 
 
-float4 PS (float3 LightDir: COLOR0, float2 Tex: TEXCOORD0, float2 Tex2 : TEXCOORD1) : COLOR
+float4 EncodeRGBE8(in float3 rgb)
+{
+	float4 rgbe;
+
+    // determine the largest color component
+	float fMax = max(max(rgb.r, rgb.g), rgb.b);
+	
+	float fExp = floor( LOG(EXP_BASE, fMax) );
+
+	rgbe.a = clamp( (fExp + EXP_OFFSET) / 256, 0.0, 1.0 );
+	rgbe.rgb = rgb / pow(EXP_BASE, rgbe.a * 256 - EXP_OFFSET);
+
+	return rgbe;
+}
+
+float4 PS (
+	float3 LightDir		: COLOR0, 
+	float2 Tex			: TEXCOORD0, 
+	float2 Tex2			: TEXCOORD1,
+	float4 ShadowMapUV	: TEXCOORD2,
+	float Depth			: TEXCOORD3
+	) : COLOR
 {
     float4 color = tex2D(ColorMapSampler, Tex);	// fetch color map
     float3 bumpNormal = (2 * (tex2D(BumpMapSampler, Tex2))) - 1.0f; // bump map
     
     float4 diff = 2.0f * saturate(dot(bumpNormal, (LightDir - 0.5f) * 2.0f)); // diffuse comp.
+
+	float ShadowMap = OffsetLookup(ShadowMapSampler, ShadowMapUV, float2(0.0f, 0.0f));
+	//float ShadowMap = tex2Dproj(ShadowMapSampler, ShadowMapUV).x;
+    
+    // value of shadow_map bigger or equal than depth value: return diffuse
+    //Color += (In.Depth - ShadowMap < 0.0f ) ? 0.0f : In.Diffuse;
+    float4 shadow = (Depth - ShadowMap < 0.0f ) ? 0.0f : 1.0f;
+     	
+ 	if(bHDR)
+ 	{
+ 		return EncodeRGBE8(color * diff * shadow);
+ 	}
+ 	else
+ 	{
+ 		return color * diff * shadow;
+ 	}
  	
- 	return color * diff;
-}
+ }
