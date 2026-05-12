@@ -17,7 +17,6 @@
       <Configuration>Release</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
-
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>
@@ -53,38 +52,39 @@
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
-
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
-  <ImportGroup Label="Shared" >
+  <ImportGroup Label="Shared">
   </ImportGroup>
-    <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-      <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    </ImportGroup>
-    <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-      <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    </ImportGroup>
-    <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    </ImportGroup>
-    <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-      <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    </ImportGroup>
-
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="props\Direct3D9-x86.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="props\Direct3D9-x86.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="props\Direct3D9-x64.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="props\Direct3D9-x64.props" />
+  </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CRT_SECURE_NO_WARNINGS;NOMINMAX;WIN32_LEAN_AND_MEAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
-       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -93,26 +93,26 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CRT_SECURE_NO_WARNINGS;NOMINMAX;WIN32_LEAN_AND_MEAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
-       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CRT_SECURE_NO_WARNINGS;NOMINMAX;WIN32_LEAN_AND_MEAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
-       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -121,17 +121,77 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CRT_SECURE_NO_WARNINGS;NOMINMAX;WIN32_LEAN_AND_MEAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
-       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
-
-  <ItemGroup></ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\app\CharacterApp.cpp" />
+    <ClCompile Include="src\app\main.cpp" />
+    <ClCompile Include="src\framework\Application.cpp" />
+    <ClCompile Include="src\framework\Camera.cpp" />
+    <ClCompile Include="src\framework\D3D9Device.cpp" />
+    <ClCompile Include="src\framework\D3D9RenderTarget.cpp" />
+    <ClCompile Include="src\framework\D3D9ShaderProgram.cpp" />
+    <ClCompile Include="src\framework\D3D9StateBlock.cpp" />
+    <ClCompile Include="src\framework\D3D9TextRenderer.cpp" />
+    <ClCompile Include="src\framework\FileSystem.cpp" />
+    <ClCompile Include="src\framework\FrameworkLog.cpp" />
+    <ClCompile Include="src\framework\GameTimer.cpp" />
+    <ClCompile Include="src\framework\InputState.cpp" />
+    <ClCompile Include="src\framework\RenderContext.cpp" />
+    <ClCompile Include="src\framework\RenderPassList.cpp" />
+    <ClCompile Include="src\framework\TrackballController.cpp" />
+    <ClCompile Include="src\legacy\logger.cpp" />
+    <ClCompile Include="src\legacy\MD3Model.cpp" />
+    <ClCompile Include="src\legacy\MD3ShaderLoader.cpp" />
+    <ClCompile Include="src\legacy\MD3SkinLoader.cpp" />
+    <ClCompile Include="src\legacy\Plane.cpp" />
+    <ClCompile Include="src\legacy\Q3Player.cpp" />
+    <ClCompile Include="src\legacy\Sphere.cpp" />
+    <ClCompile Include="src\legacy\uiAnimation.cpp" />
+    <ClCompile Include="src\legacy\Utility.cpp" />
+    <ClCompile Include="src\renderpasses\DiffusePass.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\app\CharacterApp.h" />
+    <ClInclude Include="src\app\CharacterAppSettings.h" />
+    <ClInclude Include="src\framework\Application.h" />
+    <ClInclude Include="src\framework\Camera.h" />
+    <ClInclude Include="src\framework\ComPtr.h" />
+    <ClInclude Include="src\framework\D3D9Device.h" />
+    <ClInclude Include="src\framework\D3D9RenderTarget.h" />
+    <ClInclude Include="src\framework\D3D9ShaderProgram.h" />
+    <ClInclude Include="src\framework\D3D9StateBlock.h" />
+    <ClInclude Include="src\framework\D3D9TextRenderer.h" />
+    <ClInclude Include="src\framework\FileSystem.h" />
+    <ClInclude Include="src\framework\FrameworkLog.h" />
+    <ClInclude Include="src\framework\GameTimer.h" />
+    <ClInclude Include="src\framework\InputState.h" />
+    <ClInclude Include="src\framework\IRenderPass.h" />
+    <ClInclude Include="src\framework\PropertiesFile.h" />
+    <ClInclude Include="src\framework\RenderContext.h" />
+    <ClInclude Include="src\framework\RenderPassList.h" />
+    <ClInclude Include="src\framework\TrackballController.h" />
+    <ClInclude Include="src\legacy\D3D9Compat.h" />
+    <ClInclude Include="src\legacy\logger.h" />
+    <ClInclude Include="src\legacy\MD3.h" />
+    <ClInclude Include="src\legacy\MD3Model.h" />
+    <ClInclude Include="src\legacy\MD3ShaderLoader.h" />
+    <ClInclude Include="src\legacy\MD3SkinLoader.h" />
+    <ClInclude Include="src\legacy\MD3Types.h" />
+    <ClInclude Include="src\legacy\Plane.h" />
+    <ClInclude Include="src\legacy\Q3Player.h" />
+    <ClInclude Include="src\legacy\Sphere.h" />
+    <ClInclude Include="src\legacy\uiAnimation.h" />
+    <ClInclude Include="src\legacy\Utility.h" />
+    <ClInclude Include="src\renderpasses\DiffusePass.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

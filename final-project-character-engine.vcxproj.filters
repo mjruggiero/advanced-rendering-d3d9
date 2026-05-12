@@ -1,17 +1,195 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Source Files">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    <Filter Include="app">
+      <UniqueIdentifier>{04b11099-d8cd-4a10-8e8c-baedb5803949}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    <Filter Include="framework">
+      <UniqueIdentifier>{3b792d5d-4aea-4df8-ac7e-a3144d20c488}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Resource Files">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    <Filter Include="legacy">
+      <UniqueIdentifier>{20887e70-f30c-44ab-aed5-fccec56fcc2b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="renderpasses">
+      <UniqueIdentifier>{c6b9d0a4-727f-4683-85ff-6c4b41d2c729}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\app\CharacterApp.cpp">
+      <Filter>app</Filter>
+    </ClCompile>
+    <ClCompile Include="src\app\main.cpp">
+      <Filter>app</Filter>
+    </ClCompile>
+    <ClCompile Include="src\framework\Application.cpp">
+      <Filter>framework</Filter>
+    </ClCompile>
+    <ClCompile Include="src\framework\Camera.cpp">
+      <Filter>framework</Filter>
+    </ClCompile>
+    <ClCompile Include="src\framework\D3D9Device.cpp">
+      <Filter>framework</Filter>
+    </ClCompile>
+    <ClCompile Include="src\framework\D3D9RenderTarget.cpp">
+      <Filter>framework</Filter>
+    </ClCompile>
+    <ClCompile Include="src\framework\D3D9ShaderProgram.cpp">
+      <Filter>framework</Filter>
+    </ClCompile>
+    <ClCompile Include="src\framework\D3D9StateBlock.cpp">
+      <Filter>framework</Filter>
+    </ClCompile>
+    <ClCompile Include="src\framework\D3D9TextRenderer.cpp">
+      <Filter>framework</Filter>
+    </ClCompile>
+    <ClCompile Include="src\framework\FileSystem.cpp">
+      <Filter>framework</Filter>
+    </ClCompile>
+    <ClCompile Include="src\framework\FrameworkLog.cpp">
+      <Filter>framework</Filter>
+    </ClCompile>
+    <ClCompile Include="src\framework\GameTimer.cpp">
+      <Filter>framework</Filter>
+    </ClCompile>
+    <ClCompile Include="src\framework\InputState.cpp">
+      <Filter>framework</Filter>
+    </ClCompile>
+    <ClCompile Include="src\framework\RenderContext.cpp">
+      <Filter>framework</Filter>
+    </ClCompile>
+    <ClCompile Include="src\framework\RenderPassList.cpp">
+      <Filter>framework</Filter>
+    </ClCompile>
+    <ClCompile Include="src\framework\TrackballController.cpp">
+      <Filter>framework</Filter>
+    </ClCompile>
+    <ClCompile Include="src\legacy\logger.cpp">
+      <Filter>legacy</Filter>
+    </ClCompile>
+    <ClCompile Include="src\legacy\MD3Model.cpp">
+      <Filter>legacy</Filter>
+    </ClCompile>
+    <ClCompile Include="src\legacy\MD3ShaderLoader.cpp">
+      <Filter>legacy</Filter>
+    </ClCompile>
+    <ClCompile Include="src\legacy\MD3SkinLoader.cpp">
+      <Filter>legacy</Filter>
+    </ClCompile>
+    <ClCompile Include="src\legacy\Q3Player.cpp">
+      <Filter>legacy</Filter>
+    </ClCompile>
+    <ClCompile Include="src\legacy\Sphere.cpp">
+      <Filter>legacy</Filter>
+    </ClCompile>
+    <ClCompile Include="src\legacy\uiAnimation.cpp">
+      <Filter>legacy</Filter>
+    </ClCompile>
+    <ClCompile Include="src\legacy\Utility.cpp">
+      <Filter>legacy</Filter>
+    </ClCompile>
+    <ClCompile Include="src\renderpasses\DiffusePass.cpp">
+      <Filter>renderpasses</Filter>
+    </ClCompile>
+    <ClCompile Include="src\legacy\Plane.cpp">
+      <Filter>legacy</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\app\CharacterApp.h">
+      <Filter>app</Filter>
+    </ClInclude>
+    <ClInclude Include="src\app\CharacterAppSettings.h">
+      <Filter>app</Filter>
+    </ClInclude>
+    <ClInclude Include="src\framework\Application.h">
+      <Filter>framework</Filter>
+    </ClInclude>
+    <ClInclude Include="src\framework\Camera.h">
+      <Filter>framework</Filter>
+    </ClInclude>
+    <ClInclude Include="src\framework\ComPtr.h">
+      <Filter>framework</Filter>
+    </ClInclude>
+    <ClInclude Include="src\framework\D3D9Device.h">
+      <Filter>framework</Filter>
+    </ClInclude>
+    <ClInclude Include="src\framework\D3D9RenderTarget.h">
+      <Filter>framework</Filter>
+    </ClInclude>
+    <ClInclude Include="src\framework\D3D9ShaderProgram.h">
+      <Filter>framework</Filter>
+    </ClInclude>
+    <ClInclude Include="src\framework\D3D9StateBlock.h">
+      <Filter>framework</Filter>
+    </ClInclude>
+    <ClInclude Include="src\framework\D3D9TextRenderer.h">
+      <Filter>framework</Filter>
+    </ClInclude>
+    <ClInclude Include="src\framework\FileSystem.h">
+      <Filter>framework</Filter>
+    </ClInclude>
+    <ClInclude Include="src\framework\FrameworkLog.h">
+      <Filter>framework</Filter>
+    </ClInclude>
+    <ClInclude Include="src\framework\GameTimer.h">
+      <Filter>framework</Filter>
+    </ClInclude>
+    <ClInclude Include="src\framework\InputState.h">
+      <Filter>framework</Filter>
+    </ClInclude>
+    <ClInclude Include="src\framework\IRenderPass.h">
+      <Filter>framework</Filter>
+    </ClInclude>
+    <ClInclude Include="src\framework\PropertiesFile.h">
+      <Filter>framework</Filter>
+    </ClInclude>
+    <ClInclude Include="src\framework\RenderContext.h">
+      <Filter>framework</Filter>
+    </ClInclude>
+    <ClInclude Include="src\framework\RenderPassList.h">
+      <Filter>framework</Filter>
+    </ClInclude>
+    <ClInclude Include="src\framework\TrackballController.h">
+      <Filter>framework</Filter>
+    </ClInclude>
+    <ClInclude Include="src\legacy\D3D9Compat.h">
+      <Filter>legacy</Filter>
+    </ClInclude>
+    <ClInclude Include="src\legacy\logger.h">
+      <Filter>legacy</Filter>
+    </ClInclude>
+    <ClInclude Include="src\legacy\MD3.h">
+      <Filter>legacy</Filter>
+    </ClInclude>
+    <ClInclude Include="src\legacy\MD3Model.h">
+      <Filter>legacy</Filter>
+    </ClInclude>
+    <ClInclude Include="src\legacy\MD3ShaderLoader.h">
+      <Filter>legacy</Filter>
+    </ClInclude>
+    <ClInclude Include="src\legacy\MD3SkinLoader.h">
+      <Filter>legacy</Filter>
+    </ClInclude>
+    <ClInclude Include="src\legacy\MD3Types.h">
+      <Filter>legacy</Filter>
+    </ClInclude>
+    <ClInclude Include="src\legacy\Q3Player.h">
+      <Filter>legacy</Filter>
+    </ClInclude>
+    <ClInclude Include="src\legacy\Sphere.h">
+      <Filter>legacy</Filter>
+    </ClInclude>
+    <ClInclude Include="src\legacy\uiAnimation.h">
+      <Filter>legacy</Filter>
+    </ClInclude>
+    <ClInclude Include="src\legacy\Utility.h">
+      <Filter>legacy</Filter>
+    </ClInclude>
+    <ClInclude Include="src\renderpasses\DiffusePass.h">
+      <Filter>renderpasses</Filter>
+    </ClInclude>
+    <ClInclude Include="src\legacy\Plane.h">
+      <Filter>legacy</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
