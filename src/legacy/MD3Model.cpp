@@ -546,19 +546,19 @@ void MD3Model::DrawSkeleton(MD3Model* md3Model,
 		IDirect3DPixelShader9* pixelShader =
 			md3Model->md3Meshes[iCurrMesh].pPixelShader[chosenShaderLevel];
 
-		{
-			char msg[512] = {};
-			sprintf_s(
-				msg,
-				"MD3 DrawSkeleton mesh='%s' profile=%d shaderLevel=%d VS=%p PS=%p",
-				md3Model->md3Meshes[iCurrMesh].meshHeader.cName,
-				activeProfile,
-				chosenShaderLevel,
-				vertexShader,
-				pixelShader);
+		//{
+		//	char msg[512] = {};
+		//	sprintf_s(
+		//		msg,
+		//		"MD3 DrawSkeleton mesh='%s' profile=%d shaderLevel=%d VS=%p PS=%p",
+		//		md3Model->md3Meshes[iCurrMesh].meshHeader.cName,
+		//		activeProfile,
+		//		chosenShaderLevel,
+		//		vertexShader,
+		//		pixelShader);
 
-			LOG(std::string(msg), Logger::LOG_DATA);
-		}
+		//	LOG(std::string(msg), Logger::LOG_DATA);
+		//}
 
 		m_pDevice->SetVertexShader(vertexShader);
 		m_pDevice->SetPixelShader(pixelShader);

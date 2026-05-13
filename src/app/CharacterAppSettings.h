@@ -22,6 +22,7 @@ struct CharacterAppSettings
     std::string assetRoot = ".";
     std::string mediaRoot = "../media";
     std::string shaderRoot = "shaders";
+    std::string profileRoot = "profiles";
     std::string logFile = "app.log";
 
     std::string modelName = "dragon";
@@ -36,6 +37,7 @@ struct CharacterAppSettings
     bool wireframe = false;
     bool showWeapon = false;
     bool moveLight = false;
+    float hdrExposureStep = 0.25f;
 
     float zoom = -120.0f;
     float fovDegrees = 70.0f;
@@ -155,6 +157,7 @@ inline CharacterAppSettings LoadCharacterAppSettings(const char* filename = "Cha
     settings.assetRoot = properties.GetString("paths.assetRoot", settings.assetRoot);
     settings.mediaRoot = properties.GetString("paths.mediaRoot", settings.mediaRoot);
     settings.shaderRoot = properties.GetString("paths.shaderRoot", settings.shaderRoot);
+    settings.profileRoot = properties.GetString("paths.profileRoot", settings.profileRoot);
     settings.logFile = properties.GetString("paths.logFile", settings.logFile);
 
     settings.modelName = properties.GetString("player.model", settings.modelName);
@@ -169,6 +172,7 @@ inline CharacterAppSettings LoadCharacterAppSettings(const char* filename = "Cha
     settings.wireframe = properties.GetBool("render.wireframe", settings.wireframe);
     settings.showWeapon = properties.GetBool("render.showWeapon", settings.showWeapon);
     settings.moveLight = properties.GetBool("render.moveLight", settings.moveLight);
+    settings.hdrExposureStep = properties.GetFloat("render.hdrExposureStep", settings.hdrExposureStep);
 
     settings.zoom = properties.GetFloat("camera.zoom", settings.zoom);
     settings.fovDegrees = properties.GetFloat("camera.fovDegrees", settings.fovDegrees);

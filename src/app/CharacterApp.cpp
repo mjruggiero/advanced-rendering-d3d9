@@ -72,6 +72,7 @@ bool CharacterApp::Initialize()
 	m_weaponSkinName = m_settings.weaponSkinName;
 	m_weaponPath = m_settings.weaponPath;
 	m_shaderRoot = m_settings.shaderRoot;
+	m_profileRoot = m_settings.profileRoot;
 	m_shaderProfile = m_settings.shaderProfile;
 	m_wireframe = m_settings.wireframe;
 	m_weaponVisible = m_settings.showWeapon;
@@ -82,6 +83,7 @@ bool CharacterApp::Initialize()
 	m_nearPlane = m_settings.nearPlane;
 	m_farPlane = m_settings.farPlane;
 	m_lightPosition = m_settings.lightPosition;
+	m_hdrExposureStep = m_settings.hdrExposureStep;
 
 	// Init keyboard status
 	std::fill(std::begin(m_keys), std::end(m_keys), 0);
@@ -131,8 +133,20 @@ bool CharacterApp::CreateDeviceResources()
 	m_lightSphere->OnCreateDevice(Device());
 
 	// shader loading
-	m_player->LoadPlayerShaders(Device(), m_modelPath.c_str(), m_modelName.c_str(), m_skinName.c_str(), m_shaderRoot.c_str());
-	m_player->LoadWeaponShaders(Device(), m_weaponPath.c_str(), m_weaponName.c_str(), m_weaponSkinName.c_str(), m_shaderRoot.c_str());
+	m_player->LoadPlayerShaders(
+		Device(),
+		m_modelPath.c_str(),
+		m_modelName.c_str(),
+		m_skinName.c_str(),
+		m_shaderRoot.c_str(),
+		m_profileRoot.c_str());
+	m_player->LoadWeaponShaders(
+		Device(),
+		m_weaponPath.c_str(),
+		m_weaponName.c_str(),
+		m_weaponSkinName.c_str(),
+		m_shaderRoot.c_str(),
+		m_profileRoot.c_str());
 
 	m_player->LoadSkins(Device(), m_modelPath.c_str(), m_skinName.c_str());
 	m_player->LoadWeaponSkins(Device(), m_weaponPath.c_str(), m_weaponSkinName.c_str());	// load skin of weapon
@@ -307,6 +321,12 @@ void CharacterApp::Update(float deltaSeconds)
 	device->SetVertexShaderConstantF(24, (float*)&vEyePt, 1);
 
 	// process keyboard input
+	if (m_keys['P'])
+	{
+		m_keys['P'] = FALSE;
+		m_moveLight = !m_moveLight;
+	}
+
 	if (m_moveLight)
 	{
 		if (m_keys[VK_LEFT]) { m_keys[VK_RIGHT] = 0; m_lightPosition.x -= 100.0f * deltaSeconds; }
@@ -315,14 +335,13 @@ void CharacterApp::Update(float deltaSeconds)
 		if (m_keys[VK_DOWN]) { m_keys[VK_UP] = 0;	   m_lightPosition.y -= 100.0f * deltaSeconds; }
 		if (m_keys[VK_END]) { m_keys[VK_HOME] = 0;  m_lightPosition.z -= 100.0f * deltaSeconds; }
 		if (m_keys[VK_HOME]) { m_keys[VK_END] = 0;   m_lightPosition.z += 100.0f * deltaSeconds; }
-
-		m_lightSphere->SetLightPos(m_lightPosition);
 	}
+
+	if (m_lightSphere)
+		m_lightSphere->SetLightPos(m_lightPosition);
 
 	// light direction
 	device->SetVertexShaderConstantF(12, (float*)&m_lightPosition, 1);	// light direction
-
-	if (m_keys['P']) { m_keys['P'] = 0; m_moveLight = !m_moveLight; }
 
 	if (m_keys['G']) {
 		m_keys['G'] = FALSE;
@@ -353,13 +372,13 @@ void CharacterApp::Update(float deltaSeconds)
 
 	if (m_keys['R'])
 	{
-		//m_keys['R'] = NULL;
-		m_hdr.AddExposure(10.0f * deltaSeconds);
+		m_keys['R'] = FALSE;
+		m_hdr.AddExposure(m_hdrExposureStep);
 	}
 	else if (m_keys['F'])
 	{
-		//m_keys['F'] = NULL;
-		m_hdr.AddExposure(-10.0f * deltaSeconds);
+		m_keys['F'] = FALSE;
+		m_hdr.AddExposure(-m_hdrExposureStep);
 	}
 	// choose animations
 	if (m_showAnimationUi)
@@ -479,7 +498,10 @@ void CharacterApp::Render(Framework::RenderContext& context)
 	// 6. Debug/overlay.
 	//
 	if (m_moveLight && m_lightSphere)
+	{
+		context.SetDefault3DState();
 		m_lightSphere->RenderSphere(device, m_viewProjection);
+	}
 
 	if (m_shadowMapRenderer.IsPreviewVisible())
 		m_shadowMapRenderer.DrawPreview(device);

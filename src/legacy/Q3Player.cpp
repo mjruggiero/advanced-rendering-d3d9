@@ -353,7 +353,7 @@ void Q3Player::LoadPlayerShaderProfile(const char* pcFileName)
 //
 // Desc: Load *.profile for weapon
 //----------------------------------------------------------
-void Q3Player::LoadWeaponShaderProfile(char* pcFileName)
+void Q3Player::LoadWeaponShaderProfile(const char* pcFileName)
 {
 	LOGFUNC("LoadWeaponShaderProfile()");
 
@@ -540,12 +540,19 @@ void Q3Player::LoadWeaponSkins(IDirect3DDevice9* m_pd3dDevice, const char* cPath
 //
 // Desc: load shader for the weapon
 //-------------------------------------------------------------------------------
-void Q3Player::LoadWeaponShaders(IDirect3DDevice9* m_pd3dDevice, const char* cPath, const char* cName, const char* cSkin, const char* shaderRootPath)
+void Q3Player::LoadWeaponShaders(
+	IDirect3DDevice9* m_pd3dDevice,
+	const char* cPath,
+	const char* cName,
+	const char* cSkin,
+	const char* shaderRootPath,
+	const char* profileRootPath)
 {
 	char cWeaponShaderFilePath[1024];
 	char cShaderProfilePath[1024];
 
-	sprintf(cShaderProfilePath, "%s\\%s_shader.profiles", cPath, cName);
+	const char* profileRoot = (profileRootPath && profileRootPath[0]) ? profileRootPath : cPath;
+	sprintf(cShaderProfilePath, "%s\\%s_shader.profiles", profileRoot, cName);
 
 	sprintf(cWeaponShaderFilePath, "%s\\weapon_%s.sha", cPath, cSkin);
 	md3Weapon.LoadShaders(m_pd3dDevice, cWeaponShaderFilePath, shaderRootPath);
@@ -563,12 +570,19 @@ void Q3Player::LoadWeaponShaders(IDirect3DDevice9* m_pd3dDevice, const char* cPa
 //
 // Desc: load shaders for the player
 //-------------------------------------------------------------------------------
-void Q3Player::LoadPlayerShaders(IDirect3DDevice9* m_pd3dDevice, const char* cPath, const char* cName, const char* cSkin, const char* shaderRootPath)
+void Q3Player::LoadPlayerShaders(
+	IDirect3DDevice9* m_pd3dDevice,
+	const char* cPath,
+	const char* cName,
+	const char* cSkin,
+	const char* shaderRootPath,
+	const char* profileRootPath)
 {
 	char cLowerShaderFilePath[1024], cUpperShaderFilePath[1024], cHeadShaderFilePath[1024];
 	char cShaderProfilePath[1024];
 
-	sprintf(cShaderProfilePath, "%s\\%s_shader.profiles", cPath, cName);
+	const char* profileRoot = (profileRootPath && profileRootPath[0]) ? profileRootPath : cPath;
+	sprintf(cShaderProfilePath, "%s\\%s_shader.profiles", profileRoot, cName);
 
 	sprintf(cLowerShaderFilePath, "%s\\lower_%s.sha", cPath, cSkin);
 	sprintf(cUpperShaderFilePath, "%s\\upper_%s.sha", cPath, cSkin);

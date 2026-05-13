@@ -18,7 +18,13 @@ public:
 	void LoadSkins(IDirect3DDevice9* m_pd3dDevice, const char* cPath, const char* cSkin);
 	void FreeSkins();
 
-	void LoadPlayerShaders(IDirect3DDevice9* m_pd3dDevice, const char* cPath, const char* cName, const char* cSkin, const char* shaderRootPath = "shaders");
+	void LoadPlayerShaders(
+		IDirect3DDevice9* m_pd3dDevice,
+		const char* cPath,
+		const char* cName,
+		const char* cSkin,
+		const char* shaderRootPath = "shaders",
+		const char* profileRootPath = nullptr);
 	void FreePlayerShaders(IDirect3DDevice9* m_pd3dDevice);
 	void LoadPlayerShaderProfile(const char* pcFileName);
 
@@ -39,9 +45,15 @@ public:
 	void LoadWeaponSkins(IDirect3DDevice9* m_pd3dDevice, const char* cPath, const char* cSkin);
 	void FreeWeaponSkins();
 
-	void LoadWeaponShaders(IDirect3DDevice9* m_pd3dDevice, const char* cPath, const char* cName, const char* cSkin, const char* shaderRootPath = "shaders");
+	void LoadWeaponShaders(
+		IDirect3DDevice9* m_pd3dDevice,
+		const char* cPath,
+		const char* cName,
+		const char* cSkin,
+		const char* shaderRootPath = "shaders",
+		const char* profileRootPath = nullptr);
 	void FreeWeaponShaders(IDirect3DDevice9* m_pd3dDevice);
-	void LoadWeaponShaderProfile(char* pcFileName);
+	void LoadWeaponShaderProfile(const char* pcFileName);
 
 	void SetWorldMatrix(D3DXMATRIX& matW) { matWorld = matW; }
 	void SetViewProjMatrix(D3DXMATRIX matVP) { matViewProj = matVP; }

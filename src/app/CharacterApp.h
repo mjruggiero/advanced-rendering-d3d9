@@ -58,6 +58,7 @@ private:
 	std::string m_weaponName = "railgun";
 	std::string m_weaponSkinName = "default";
 	std::string m_shaderRoot = "shaders";
+	std::string m_profileRoot = "profiles";
 
 	float m_fovDegrees = 70.0f;
 	float m_nearPlane = 1.0f;
@@ -75,6 +76,7 @@ private:
 	bool m_showAnimationUi = false;
 	bool m_moveLight = false;
 	bool m_weaponVisible = false;
+	float m_hdrExposureStep = 0.25f;
 
 	D3DXVECTOR4 m_lightPosition = D3DXVECTOR4(0, -10, 40, 1);
 	D3DXMATRIX m_projection = {};
