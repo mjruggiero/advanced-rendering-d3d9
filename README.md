@@ -21,11 +21,10 @@ This project explores real-time rendering techniques, shader pipelines, and incr
 ![Basic shader profile](docs/screenshots/profile1-shadowed.png)
 
 ### Cook Torrance lighting with shadow mapping
-![Basic shader profile](docs/screenshots/profile2-cook-torrance.png)
+![Cook Torrance profile](docs/screenshots/profile2-cook-torrance.png)
 
 ### Cook Torrance lighting with shadow mapping and HDR
-![Basic shader profile](docs/screenshots/profile2-cook-torrance-hdr.png)
-
+![Cook Torrance profile w/ HDR](docs/screenshots/profile2-cook-torrance-hdr.png)
 
 ## Recent Modernization Work
 
