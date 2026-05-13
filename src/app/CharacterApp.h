@@ -4,6 +4,7 @@
 #include "../framework/D3D9TextRenderer.h"
 #include "../framework/TrackballController.h"
 #include "CharacterAppSettings.h"
+#include "HdrRenderer.h"
 
 #include <memory>
 #include <string>
@@ -30,10 +31,6 @@ protected:
 	void Render(Framework::RenderContext& context) override;
 	void RenderMeshes();
 	bool RenderShadowMap();
-	bool RenderScalePass();
-	bool RenderBloomPass();
-	bool RenderScreenPass();
-
 	void DrawShadowMapPreview();
 
 	void OnKeyDown(uint32_t vk) override;
@@ -100,19 +97,7 @@ private:
 	IDirect3DSurface9* m_shadowMapSurface = nullptr;
 	IDirect3DSurface9* m_shadowDepthSurface = nullptr;
 
-	// HDR stuff
-	float m_fExposureLevel = 4.0f;
-	bool m_bHDR = true;
-	bool m_bOne = true;
-	IDirect3DVertexDeclaration9* m_pDecl = nullptr;
-	ID3DXEffect* m_pEffect = nullptr;
-	IDirect3DTexture9* m_pRenderTarget = nullptr;
-	IDirect3DSurface9* m_pSurface = nullptr;
-	IDirect3DTexture9* m_pRenderTarget2 = nullptr;
-	IDirect3DSurface9* m_pSurface2 = nullptr;
-	IDirect3DTexture9* m_pRenderTarget3 = nullptr;
-	IDirect3DSurface9* m_pSurface3 = nullptr;
-	IDirect3DVertexBuffer9* m_pImageVB = nullptr;
+	HdrRenderer m_hdr;
 
 	D3DXVECTOR3 m_lightViewPosition = D3DXVECTOR3(50.0f, 100.0f, 50.0f);
 	D3DXMATRIX m_lightViewProjection = {};

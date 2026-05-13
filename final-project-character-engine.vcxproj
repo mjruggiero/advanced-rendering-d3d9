@@ -132,6 +132,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\app\CharacterApp.cpp" />
+    <ClCompile Include="src\app\HdrRenderer.cpp" />
     <ClCompile Include="src\app\main.cpp" />
     <ClCompile Include="src\framework\Application.cpp" />
     <ClCompile Include="src\framework\Camera.cpp" />
@@ -161,6 +162,7 @@
   <ItemGroup>
     <ClInclude Include="src\app\CharacterApp.h" />
     <ClInclude Include="src\app\CharacterAppSettings.h" />
+    <ClInclude Include="src\app\HdrRenderer.h" />
     <ClInclude Include="src\framework\Application.h" />
     <ClInclude Include="src\framework\Camera.h" />
     <ClInclude Include="src\framework\ComPtr.h" />

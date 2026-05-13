@@ -30,18 +30,6 @@ namespace
 	private:
 		int m_previous = 0;
 	};
-
-	struct CustomVertex
-	{
-		float x, y;
-	};
-
-	D3DVERTEXELEMENT9 decl[] =
-	{
-		// stream, offset, type, method, semantic type (for example normal), ?
-		{0, 0, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0},
-		D3DDECL_END()
-	};
 }
 
 Framework::ApplicationConfig CharacterApp::GetConfig() const
@@ -134,25 +122,6 @@ bool CharacterApp::CreateDeviceResources()
 	if (!m_textRenderer.Create(Device()))
 		return false;
 
-	// Define DEBUG_VS and/or DEBUG_PS to debug vertex and/or pixel shaders with the 
-	// shader debugger. Debugging vertex shaders requires either REF or software vertex 
-	// processing, and debugging pixel shaders requires REF.  The 
-	// D3DXSHADER_FORCE_*_SOFTWARE_NOOPT flag improves the debug experience in the 
-	// shader debugger.  It enables source level debugging, prevents instruction 
-	// reordering, prevents dead code elimination, and forces the compiler to compile 
-	// against the next higher available software target, which ensures that the 
-	// unoptimized shaders do not exceed the shader model limitations.  Setting these 
-	// flags will cause slower rendering since the shaders will be unoptimized and 
-	// forced into software.  See the DirectX documentation for more information about 
-	// using the shader debugger.
-	DWORD dwShaderFlags = 0;
-#ifdef DEBUG_VS
-	dwShaderFlags |= D3DXSHADER_FORCE_VS_SOFTWARE_NOOPT;
-#endif
-#ifdef DEBUG_PS
-	dwShaderFlags |= D3DXSHADER_FORCE_PS_SOFTWARE_NOOPT;
-#endif
-
 	IDirect3DDevice9* device = Device();
 	if (!device)
 		return false;
@@ -171,42 +140,9 @@ bool CharacterApp::CreateDeviceResources()
 	m_plane->InitDeviceObjects(Device());
 	m_plane->LoadShaders(Device(), "plane_default.sha", "");
 
-	if (FAILED(device->CreateVertexDeclaration(decl, &m_pDecl)))
-	{
-		Framework::FrameworkLog::WriteError("Failed to create HDR fullscreen vertex declaration");
+	const std::string hdrEffectPath = m_shaderRoot + "/HDR.fx";
+	if (!m_hdr.CreateDeviceResources(device, hdrEffectPath))
 		return false;
-	}
-
-	ID3DXBuffer* errorBuffer = nullptr;
-	HRESULT hr = D3DXCreateEffectFromFileA(
-		device,
-		"shaders/HDR.fx",
-		nullptr,
-		nullptr,
-		D3DXSHADER_DEBUG,
-		nullptr,
-		&m_pEffect,
-		&errorBuffer);
-
-	if (FAILED(hr))
-	{
-		if (errorBuffer)
-		{
-			Framework::FrameworkLog::WriteError(
-				std::string("Failed to create HDR effect: ") +
-				static_cast<const char*>(errorBuffer->GetBufferPointer()));
-			errorBuffer->Release();
-		}
-		else
-		{
-			Framework::FrameworkLog::WriteError("Failed to create HDR effect: shaders/HDR.fx");
-		}
-
-		return false;
-	}
-
-	if (errorBuffer)
-		errorBuffer->Release();
 
 	return true;
 }
@@ -237,8 +173,7 @@ void CharacterApp::DestroyDeviceResources()
 		m_player->FreeWeaponSkins();
 	}
 
-	SAFE_RELEASE(m_pDecl);
-	SAFE_RELEASE(m_pEffect);
+	m_hdr.DestroyDeviceResources();
 }
 
 bool CharacterApp::CreateResetResources()
@@ -306,114 +241,8 @@ bool CharacterApp::CreateResetResources()
 
 	const UINT backBufferWidth = BackBufferWidth();
 	const UINT backBufferHeight = BackBufferHeight();
-
-	hr = device->CreateTexture(
-		backBufferWidth,
-		backBufferHeight,
-		1,
-		D3DUSAGE_RENDERTARGET,
-		D3DFMT_A8R8G8B8,
-		D3DPOOL_DEFAULT,
-		&m_pRenderTarget,
-		nullptr);
-
-	if (FAILED(hr))
-	{
-		Framework::FrameworkLog::WriteError("Failed to create HDR full-resolution render target");
+	if (!m_hdr.CreateResetResources(device, backBufferWidth, backBufferHeight))
 		return false;
-	}
-
-	hr = m_pRenderTarget->GetSurfaceLevel(0, &m_pSurface);
-	if (FAILED(hr))
-	{
-		Framework::FrameworkLog::WriteError("Failed to get HDR full-resolution render target surface");
-		return false;
-	}
-
-	hr = device->CreateTexture(
-		backBufferWidth / 4,
-		backBufferHeight / 4,
-		1,
-		D3DUSAGE_RENDERTARGET,
-		D3DFMT_A8R8G8B8,
-		D3DPOOL_DEFAULT,
-		&m_pRenderTarget2,
-		nullptr);
-
-	if (FAILED(hr))
-	{
-		Framework::FrameworkLog::WriteError("Failed to create HDR bloom render target 2");
-		return false;
-	}
-
-	hr = m_pRenderTarget2->GetSurfaceLevel(0, &m_pSurface2);
-	if (FAILED(hr))
-	{
-		Framework::FrameworkLog::WriteError("Failed to get HDR bloom surface 2");
-		return false;
-	}
-
-	hr = device->CreateTexture(
-		backBufferWidth / 4,
-		backBufferHeight / 4,
-		1,
-		D3DUSAGE_RENDERTARGET,
-		D3DFMT_A8R8G8B8,
-		D3DPOOL_DEFAULT,
-		&m_pRenderTarget3,
-		nullptr);
-
-	if (FAILED(hr))
-	{
-		Framework::FrameworkLog::WriteError("Failed to create HDR bloom render target 3");
-		return false;
-	}
-
-	hr = m_pRenderTarget3->GetSurfaceLevel(0, &m_pSurface3);
-	if (FAILED(hr))
-	{
-		Framework::FrameworkLog::WriteError("Failed to get HDR bloom surface 3");
-		return false;
-	}
-
-	hr = device->CreateVertexBuffer(
-		4 * sizeof(CustomVertex),
-		D3DUSAGE_WRITEONLY,
-		0,
-		D3DPOOL_DEFAULT,
-		&m_pImageVB,
-		nullptr);
-
-	if (FAILED(hr))
-	{
-		Framework::FrameworkLog::WriteError("Failed to create HDR fullscreen image vertex buffer");
-		return false;
-	}
-
-	CustomVertex* vertices = nullptr;
-	hr = m_pImageVB->Lock(0, 4 * sizeof(CustomVertex), reinterpret_cast<void**>(&vertices), 0);
-	if (FAILED(hr))
-	{
-		Framework::FrameworkLog::WriteError("Failed to lock HDR fullscreen image vertex buffer");
-		return false;
-	}
-
-	vertices[0].x = -1.0f;
-	vertices[0].y = -1.0f;
-
-	vertices[1].x = -1.0f;
-	vertices[1].y = 1.0f;
-
-	vertices[2].x = 1.0f;
-	vertices[2].y = -1.0f;
-
-	vertices[3].x = 1.0f;
-	vertices[3].y = 1.0f;
-
-	m_pImageVB->Unlock();
-
-	if (m_pEffect)
-		m_pEffect->OnResetDevice();
 
 	// Setup the camera's projection parameters
 	const float fAspectRatio = BackBufferAspectRatio();
@@ -459,19 +288,7 @@ void CharacterApp::DestroyResetResources()
 	SAFE_RELEASE(m_shadowDepthSurface);
 	SAFE_RELEASE(m_shadowMapSurface);
 	SAFE_RELEASE(m_shadowMap);
-
-	if (m_pEffect)
-		m_pEffect->OnLostDevice();
-
-	SAFE_RELEASE(m_pSurface);
-	SAFE_RELEASE(m_pSurface2);
-	SAFE_RELEASE(m_pSurface3);
-
-	SAFE_RELEASE(m_pImageVB);
-
-	SAFE_RELEASE(m_pRenderTarget);
-	SAFE_RELEASE(m_pRenderTarget2);
-	SAFE_RELEASE(m_pRenderTarget3);
+	m_hdr.DestroyResetResources();
 
 	// Release resources created in CreateResetResources.
 	// D3DXFont/D3DXSprite DestroyResetResources calls also belong here.
@@ -562,7 +379,7 @@ void CharacterApp::Update(float deltaSeconds)
 	if (m_keys['H'])
 	{
 		m_keys['H'] = NULL;
-		m_bHDR = !m_bHDR;
+		m_hdr.ToggleEnabled();
 	}
 
 	// turn shadow map preview on/off
@@ -575,23 +392,13 @@ void CharacterApp::Update(float deltaSeconds)
 	if (m_keys['R'])
 	{
 		//m_keys['R'] = NULL;
-		m_fExposureLevel += 10.0 * deltaSeconds;
+		m_hdr.AddExposure(10.0f * deltaSeconds);
 	}
 	else if (m_keys['F'])
 	{
 		//m_keys['F'] = NULL;
-		m_fExposureLevel -= 10.0 * deltaSeconds;
+		m_hdr.AddExposure(-10.0f * deltaSeconds);
 	}
-
-	if (m_fExposureLevel > 32.0f)
-	{
-		m_fExposureLevel = 32.0;
-	}
-	if (m_fExposureLevel < 1.0)
-	{
-		m_fExposureLevel = 1.0;
-	}
-
 	// choose animations
 	if (m_showAnimationUi)
 	{
@@ -710,32 +517,11 @@ void CharacterApp::Render(Framework::RenderContext& context)
 	// 3. Choose main scene target.
 	//
 	D3DXVECTOR4 hdrEnable(0.0f, 0.0f, 0.0f, 0.0f);
-
-	if (m_bHDR)
+	if (!m_hdr.BeginScene(device, oldBackBuffer, hdrEnable))
 	{
-		device->SetRenderTarget(0, m_pSurface);
-		device->Clear(
-			0,
-			nullptr,
-			D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
-			0x000000ff,
-			1.0f,
-			0);
-
-		hdrEnable = D3DXVECTOR4(1.0f, 0.0f, 0.0f, 0.0f);
-	}
-	else
-	{
-		device->SetRenderTarget(0, oldBackBuffer);
-		device->Clear(
-			0,
-			nullptr,
-			D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
-			0x000000ff,
-			1.0f,
-			0);
-
-		hdrEnable = D3DXVECTOR4(0.0f, 0.0f, 0.0f, 0.0f);
+		SAFE_RELEASE(oldBackBuffer);
+		Framework::FrameworkLog::WriteError("HDR BeginScene failed");
+		return;
 	}
 
 	//
@@ -754,14 +540,9 @@ void CharacterApp::Render(Framework::RenderContext& context)
 	//
 	// 5. Post-process HDR back to backbuffer.
 	//
-	if (m_bHDR)
+	if (!m_hdr.RenderPostProcess(device, oldBackBuffer, BackBufferWidth(), BackBufferHeight()))
 	{
-		RenderScalePass();
-		RenderBloomPass();
-
-		device->SetRenderTarget(0, oldBackBuffer);
-
-		RenderScreenPass();
+		Framework::FrameworkLog::WriteError("HDR post-process failed");
 	}
 
 	SAFE_RELEASE(oldBackBuffer);
@@ -970,133 +751,6 @@ void CharacterApp::DrawShadowMapPreview()
 	device->DrawPrimitiveUP(D3DPT_TRIANGLEFAN, 2, vertices, sizeof(TVertex));
 }
 
-bool CharacterApp::RenderScalePass()
-{
-	IDirect3DDevice9* device = Device();
-	if (!device || !m_shadowMap)
-		return false;
-
-	// 2nd pass
-	device->SetRenderTarget(0, m_pSurface2);
-
-	m_pEffect->SetTechnique("ScaleBuffer");
-	device->SetVertexDeclaration(m_pDecl);
-
-	// sample down render target
-	m_pEffect->SetTexture("RenderMap", m_pRenderTarget);
-
-	m_pEffect->Begin(NULL, 0);
-
-	m_pEffect->BeginPass(0);
-	device->SetStreamSource(0, m_pImageVB, 0, sizeof(CustomVertex));
-	device->DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, 2);
-	m_pEffect->EndPass();
-
-	m_pEffect->End();
-
-	//D3DXSaveTextureToFile("test2.bmp", D3DXIFF_BMP, m_pRenderTarget2, NULL);
-
-	return S_OK;
-}
-
-bool CharacterApp::RenderBloomPass()
-{
-	IDirect3DDevice9* device = Device();
-	if (!device || !m_shadowMap)
-		return false;
-
-	// 3rd - 11th pass
-	// Bloom filter
-	m_pEffect->SetTechnique("Bloom");
-	device->SetVertexDeclaration(m_pDecl);
-
-	// pixel size to convert to texel space
-	float fPixelSizeX = -1.0f / (BackBufferWidth() / 4.0f);
-	float fPixelSizeY = 1.0f / (BackBufferHeight() / 4.0f);
-	D3DXVECTOR4 pixelSizes(fPixelSizeX, fPixelSizeY, 1.0f, 1.0f);
-	m_pEffect->SetVector("pixelSize", &pixelSizes);
-
-	device->SetStreamSource(0, m_pImageVB, 0, sizeof(CustomVertex));
-
-	// Scale number of iterations for bloom filter
-	// Provide even numbers, because of the ping-pong buffer
-	int iteration = 8;
-	/*
-	if ((m_d3dsdBackBuffer.Width) <= 800.0f)
-	iteration = 4;
-	else if ((m_d3dsdBackBuffer.Width) <= 1024.0f)
-	iteration = 6;
-	else if ((m_d3dsdBackBuffer.Width) >= 1024.0f)
-	iteration = 8;
-	*/
-
-	// eight passes for bloom filter
-	for (int pass = 0; pass < iteration; pass++)
-	{
-		// ping-pong between render targets
-		if (m_bOne)
-		{
-			m_pEffect->SetTexture("RenderMap", m_pRenderTarget2);
-			device->SetRenderTarget(0, m_pSurface3);
-			m_bOne = FALSE;
-		}
-		else
-		{
-			m_pEffect->SetTexture("RenderMap", m_pRenderTarget3);
-			device->SetRenderTarget(0, m_pSurface2);
-			m_bOne = TRUE;
-		}
-
-		m_pEffect->SetFloat("fIteration", (float)pass);
-
-		m_pEffect->Begin(NULL, 0);
-
-		m_pEffect->BeginPass(0);
-		device->DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, 2);
-		m_pEffect->EndPass();
-
-		m_pEffect->End();
-	}
-
-	//D3DXSaveTextureToFile("test3.bmp", D3DXIFF_BMP, m_pRenderTarget3, NULL);
-
-	return S_OK;
-}
-
-bool CharacterApp::RenderScreenPass()
-{
-	IDirect3DDevice9* device = Device();
-	if (!device || !m_shadowMap)
-		return false;
-
-	// 12th pass
-	// Change the rendertarget back to the main backbuffer
-	//m_pd3dDevice->SetRenderTarget(0, m_pBackBuffer);
-
-	// Clear the viewport
-	//m_pd3dDevice->Clear( 0L, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER, 0xffffffff, 1.0f, 0L );
-
-	m_pEffect->SetTechnique("Screenblit");
-	device->SetVertexDeclaration(m_pDecl);
-
-	//D3DXSaveTextureToFile("test4.bmp", D3DXIFF_BMP, m_pRenderTarget, NULL);
-	//D3DXSaveTextureToFile("test5.bmp", D3DXIFF_BMP, m_pRenderTarget2, NULL);
-	m_pEffect->SetTexture("FullResMap", m_pRenderTarget);
-	m_pEffect->SetTexture("RenderMap", m_pRenderTarget2);
-	m_pEffect->SetFloat("ExposureLevel", m_fExposureLevel);
-
-	m_pEffect->Begin(NULL, 0);
-
-	m_pEffect->BeginPass(0);
-	device->SetStreamSource(0, m_pImageVB, 0, sizeof(CustomVertex));
-	device->DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, 2);
-	m_pEffect->EndPass();
-
-	m_pEffect->End();
-
-	return S_OK;
-}
-
 void CharacterApp::RenderText()
 {
 	IDirect3DDevice9* device = Device();
@@ -1211,7 +865,7 @@ void CharacterApp::RenderText()
 			white,
 			L"A - Animations\nO - Options");
 		WCHAR strExposure[256] = {};
-		swprintf_s(strExposure, L"Exposure Level %.3f", m_fExposureLevel);
+		swprintf_s(strExposure, L"Exposure Level %.3f", m_hdr.ExposureLevel());
 		m_textRenderer.DrawLine(
 			Framework::D3D9TextRenderer::FontSize::Small,
 			2,
