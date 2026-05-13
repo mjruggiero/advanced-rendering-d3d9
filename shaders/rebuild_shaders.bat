@@ -39,37 +39,38 @@ echo.
 echo Rebuilding shaders in "%SHADER_DIR%"...
 echo.
 
-call :CompileVS ColorNOneTexture
+call :CompileVS ColorNOneTexture vs_1_1
 if errorlevel 1 exit /b 1
 
-call :CompileVS CookTorrance
+call :CompileVS CookTorrance vs_1_1
 if errorlevel 1 exit /b 1
 
-call :CompilePS CookTorrance
+REM Cook-Torrance needs ps_2_a after shadow-map sampling is added.
+call :CompilePS CookTorrance ps_2_a /O3
 if errorlevel 1 exit /b 1
 
-call :CompileVS CreateShadowMap
+call :CompileVS CreateShadowMap vs_1_1
 if errorlevel 1 exit /b 1
 
-call :CompilePS CreateShadowMap
+call :CompilePS CreateShadowMap ps_2_0
 if errorlevel 1 exit /b 1
 
-call :CompileVS diffuse
+call :CompileVS diffuse vs_1_1
 if errorlevel 1 exit /b 1
 
-call :CompilePS diffuse
+call :CompilePS diffuse ps_2_0
 if errorlevel 1 exit /b 1
 
-call :CompileVS diffuseSpecular
+call :CompileVS diffuseSpecular vs_1_1
 if errorlevel 1 exit /b 1
 
-call :CompilePS diffuseSpecular
+call :CompilePS diffuseSpecular ps_2_0
 if errorlevel 1 exit /b 1
 
-call :CompilePS OnlyOneTexture
+call :CompilePS OnlyOneTexture ps_2_0
 if errorlevel 1 exit /b 1
 
-call :CompileVS Sphere
+call :CompileVS Sphere vs_1_1
 if errorlevel 1 exit /b 1
 
 echo.
@@ -79,16 +80,20 @@ exit /b 0
 
 :CompileVS
 set "NAME=%~1"
+set "TARGET=%~2"
+set "FLAGS=%~3"
 set "SRC=%SHADER_DIR%%NAME%.fx"
 set "OUT=%SHADER_DIR%%NAME%.vsh"
+
+if "%TARGET%"=="" set "TARGET=vs_1_1"
 
 if not exist "%SRC%" (
     echo WARNING: Missing "%SRC%" -- skipping vertex shader.
     exit /b 0
 )
 
-echo Compiling VS: %NAME%.fx -^> %NAME%.vsh
-"%FXC%" /nologo /T vs_1_1 /E VS /Fc "%OUT%" "%SRC%"
+echo Compiling VS: %NAME%.fx -^> %NAME%.vsh [%TARGET%]
+"%FXC%" /nologo %FLAGS% /T %TARGET% /E VS /Fc "%OUT%" "%SRC%"
 
 if errorlevel 1 (
     echo ERROR: Failed compiling vertex shader "%SRC%"
@@ -100,16 +105,20 @@ exit /b 0
 
 :CompilePS
 set "NAME=%~1"
+set "TARGET=%~2"
+set "FLAGS=%~3"
 set "SRC=%SHADER_DIR%%NAME%.fxp"
 set "OUT=%SHADER_DIR%%NAME%.psh"
+
+if "%TARGET%"=="" set "TARGET=ps_2_0"
 
 if not exist "%SRC%" (
     echo WARNING: Missing "%SRC%" -- skipping pixel shader.
     exit /b 0
 )
 
-echo Compiling PS: %NAME%.fxp -^> %NAME%.psh
-"%FXC%" /nologo /T ps_2_a /E PS /Fc "%OUT%" "%SRC%"
+echo Compiling PS: %NAME%.fxp -^> %NAME%.psh [%TARGET%]
+"%FXC%" /nologo %FLAGS% /T %TARGET% /E PS /Fc "%OUT%" "%SRC%"
 
 if errorlevel 1 (
     echo ERROR: Failed compiling pixel shader "%SRC%"
