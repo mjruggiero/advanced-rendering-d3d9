@@ -482,6 +482,17 @@ void CharacterApp::Render(Framework::RenderContext& context)
 
 	RenderMeshes();
 
+	//
+	// The moveable light marker is part of the 3D scene. Draw it before HDR
+	// post-processing so it appears in both HDR and non-HDR modes.
+	//
+	if (m_moveLight && m_lightSphere)
+	{
+		Framework::D3D9ScopedStateBlock restoreState(device);
+		context.SetDefault3DState();
+		m_lightSphere->RenderSphere(device, m_viewProjection);
+	}
+
 	device->SetTexture(2, nullptr);
 
 	//
@@ -497,12 +508,6 @@ void CharacterApp::Render(Framework::RenderContext& context)
 	//
 	// 6. Debug/overlay.
 	//
-	if (m_moveLight && m_lightSphere)
-	{
-		context.SetDefault3DState();
-		m_lightSphere->RenderSphere(device, m_viewProjection);
-	}
-
 	if (m_shadowMapRenderer.IsPreviewVisible())
 		m_shadowMapRenderer.DrawPreview(device);
 
