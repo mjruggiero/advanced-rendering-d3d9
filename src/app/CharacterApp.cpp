@@ -200,44 +200,8 @@ bool CharacterApp::CreateResetResources()
 	m_plane->Create(100.0f, 100.0f);
 	m_plane->RestoreDeviceObjects();
 
-	HRESULT hr = device->CreateTexture(
-		ShadowMapSize,
-		ShadowMapSize,
-		1,
-		D3DUSAGE_RENDERTARGET,
-		ShadowMapFormat,
-		D3DPOOL_DEFAULT,
-		&m_shadowMap,
-		nullptr);
-
-	if (FAILED(hr))
-	{
-		Framework::FrameworkLog::WriteError("Failed to create shadow map texture");
+	if (!m_shadowMapRenderer.CreateResetResources(device))
 		return false;
-	}
-
-	hr = m_shadowMap->GetSurfaceLevel(0, &m_shadowMapSurface);
-	if (FAILED(hr))
-	{
-		Framework::FrameworkLog::WriteError("Failed to get shadow map surface");
-		return false;
-	}
-
-	hr = device->CreateDepthStencilSurface(
-		ShadowMapSize,
-		ShadowMapSize,
-		D3DFMT_D24S8,
-		D3DMULTISAMPLE_NONE,
-		0,
-		TRUE,
-		&m_shadowDepthSurface,
-		nullptr);
-
-	if (FAILED(hr))
-	{
-		Framework::FrameworkLog::WriteError("Failed to create shadow depth surface");
-		return false;
-	}
 
 	const UINT backBufferWidth = BackBufferWidth();
 	const UINT backBufferHeight = BackBufferHeight();
@@ -285,9 +249,7 @@ void CharacterApp::DestroyResetResources()
 {
 	Framework::FrameworkLog::WriteInfo("CharacterApp DestroyResetResources");
 
-	SAFE_RELEASE(m_shadowDepthSurface);
-	SAFE_RELEASE(m_shadowMapSurface);
-	SAFE_RELEASE(m_shadowMap);
+	m_shadowMapRenderer.DestroyResetResources();
 	m_hdr.DestroyResetResources();
 
 	// Release resources created in CreateResetResources.
@@ -386,7 +348,7 @@ void CharacterApp::Update(float deltaSeconds)
 	if (m_keys['M'])
 	{
 		m_keys['M'] = FALSE;
-		m_showShadowMap = !m_showShadowMap;
+		m_shadowMapRenderer.TogglePreview();
 	}
 
 	if (m_keys['R'])
@@ -452,43 +414,9 @@ void CharacterApp::Update(float deltaSeconds)
 	m_appTimeSeconds += deltaSeconds;
 	m_player->Update(m_appTimeSeconds);
 
-	m_lightViewPosition = D3DXVECTOR3(
-		50.0f * sinf(m_appTimeSeconds),
-		100.0f,
-		50.0f * cosf(m_appTimeSeconds));
-
-	D3DXVECTOR3 lightLookAt(0.0f, 0.0f, 0.0f);
-	D3DXVECTOR3 lightUp(0.0f, 1.0f, 0.0f);
-
-	D3DXMATRIX lightView;
-	D3DXMATRIX lightProjection;
-
-	D3DXMatrixLookAtLH(
-		&lightView,
-		&m_lightViewPosition,
-		&lightLookAt,
-		&lightUp);
-
-	D3DXMatrixPerspectiveFovLH(
-		&lightProjection,
-		D3DX_PI / 2.0f,
-		1.0f,
-		ShadowNearPlane,
-		ShadowFarPlane);
-
-	m_lightViewProjection = lightView * lightProjection;
-
-	const float offsetX = 0.5f + (0.5f / static_cast<float>(ShadowMapSize));
-	const float offsetY = 0.5f + (0.5f / static_cast<float>(ShadowMapSize));
-
-	m_scaleBias = D3DXMATRIX(
-		0.5f, 0.0f, 0.0f, 0.0f,
-		0.0f, -0.5f, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f, 0.0f,
-		offsetX, offsetY, 0.5f, 1.0f);
-
-	m_player->SetLightViewProjMatrix(m_lightViewProjection);
-	m_player->SetScaleBiasMatrix(m_scaleBias);
+	m_shadowMapRenderer.Update(m_appTimeSeconds);
+	m_player->SetLightViewProjMatrix(m_shadowMapRenderer.LightViewProjection());
+	m_player->SetScaleBiasMatrix(m_shadowMapRenderer.ScaleBias());
 }
 
 void CharacterApp::Render(Framework::RenderContext& context)
@@ -501,7 +429,7 @@ void CharacterApp::Render(Framework::RenderContext& context)
 	// 1. Render shadow map.
 	// RenderShadowMap owns shadow RT/depth switching and restores the previous target.
 	//
-	if (!RenderShadowMap())
+	if (!m_shadowMapRenderer.Render(device, m_player.get(), m_plane.get(), m_viewProjection))
 	{
 		Framework::FrameworkLog::WriteError("RenderShadowMap failed");
 	}
@@ -530,7 +458,7 @@ void CharacterApp::Render(Framework::RenderContext& context)
 	context.SetDefault3DState();
 	context.SetWireframe(m_wireframe);
 
-	device->SetTexture(2, m_shadowMap);
+	device->SetTexture(2, m_shadowMapRenderer.Texture());
 	device->SetPixelShaderConstantF(29, reinterpret_cast<const float*>(&hdrEnable), 1);
 
 	RenderMeshes();
@@ -553,8 +481,8 @@ void CharacterApp::Render(Framework::RenderContext& context)
 	if (m_moveLight && m_lightSphere)
 		m_lightSphere->RenderSphere(device, m_viewProjection);
 
-	if (m_showShadowMap)
-		DrawShadowMapPreview();
+	if (m_shadowMapRenderer.IsPreviewVisible())
+		m_shadowMapRenderer.DrawPreview(device);
 
 	RenderText();
 }
@@ -565,15 +493,15 @@ void CharacterApp::RenderMeshes()
 	if (!device)
 		return;
 
-	D3DXMATRIX modelLightVP = m_world * m_lightViewProjection;
-	D3DXMATRIX modelLightTex = modelLightVP * m_scaleBias;
+	D3DXMATRIX modelLightVP = m_world * m_shadowMapRenderer.LightViewProjection();
+	D3DXMATRIX modelLightTex = modelLightVP * m_shadowMapRenderer.ScaleBias();
 
 	D3DXMatrixTranspose(&modelLightVP, &modelLightVP);
 	D3DXMatrixTranspose(&modelLightTex, &modelLightTex);
 
 	device->SetVertexShaderConstantF(16, reinterpret_cast<const float*>(&modelLightVP), 4);
 	device->SetVertexShaderConstantF(20, reinterpret_cast<const float*>(&modelLightTex), 4);
-	D3DXVECTOR4 planeConstants(ShadowFarPlane, ShadowNearPlane, 0.0f, 0.0f);
+	D3DXVECTOR4 planeConstants(ShadowMapRenderer::FarPlane, ShadowMapRenderer::NearPlane, 0.0f, 0.0f);
 	device->SetVertexShaderConstantF(
 		34,
 		reinterpret_cast<const float*>(&planeConstants),
@@ -586,8 +514,8 @@ void CharacterApp::RenderMeshes()
 		m_player->Draw(device);
 	}
 
-	D3DXMATRIX planeLightVP = m_lightViewProjection;
-	D3DXMATRIX planeLightTex = planeLightVP * m_scaleBias;
+	D3DXMATRIX planeLightVP = m_shadowMapRenderer.LightViewProjection();
+	D3DXMATRIX planeLightTex = planeLightVP * m_shadowMapRenderer.ScaleBias();
 
 	D3DXMatrixTranspose(&planeLightVP, &planeLightVP);
 	D3DXMatrixTranspose(&planeLightTex, &planeLightTex);
@@ -604,151 +532,6 @@ void CharacterApp::RenderMeshes()
 		m_plane->SetShaderProfile(0);
 		m_plane->Render(m_viewProjection);
 	}
-}
-
-bool CharacterApp::RenderShadowMap()
-{
-	IDirect3DDevice9* device = Device();
-	if (!device || !m_shadowMapSurface || !m_shadowDepthSurface)
-		return false;
-
-	IDirect3DSurface9* oldRenderTarget = nullptr;
-	IDirect3DSurface9* oldDepthSurface = nullptr;
-	D3DVIEWPORT9 oldViewport = {};
-
-	if (FAILED(device->GetRenderTarget(0, &oldRenderTarget)))
-		return false;
-
-	if (FAILED(device->GetDepthStencilSurface(&oldDepthSurface)))
-	{
-		SAFE_RELEASE(oldRenderTarget);
-		return false;
-	}
-
-	device->GetViewport(&oldViewport);
-
-	HRESULT hr = device->SetRenderTarget(0, m_shadowMapSurface);
-	if (FAILED(hr))
-	{
-		SAFE_RELEASE(oldDepthSurface);
-		SAFE_RELEASE(oldRenderTarget);
-		return false;
-	}
-
-	hr = device->SetDepthStencilSurface(m_shadowDepthSurface);
-	if (FAILED(hr))
-	{
-		device->SetRenderTarget(0, oldRenderTarget);
-		device->SetViewport(&oldViewport);
-		SAFE_RELEASE(oldDepthSurface);
-		SAFE_RELEASE(oldRenderTarget);
-		return false;
-	}
-
-	D3DVIEWPORT9 shadowViewport = {};
-	shadowViewport.X = 0;
-	shadowViewport.Y = 0;
-	shadowViewport.Width = ShadowMapSize;
-	shadowViewport.Height = ShadowMapSize;
-	shadowViewport.MinZ = 0.0f;
-	shadowViewport.MaxZ = 1.0f;
-	device->SetViewport(&shadowViewport);
-
-	device->Clear(
-		0,
-		nullptr,
-		D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
-		0xffffffff,
-		1.0f,
-		0);
-
-	D3DXVECTOR4 planeConstants(ShadowFarPlane, ShadowNearPlane, 0.0f, 0.0f);
-	device->SetVertexShaderConstantF(
-		34,
-		reinterpret_cast<const float*>(&planeConstants),
-		1);
-
-	if (m_player)
-	{
-		ScopedLegacyShaderProfile shadowProfile(3);
-		m_player->Draw(device);
-	}
-
-	if (m_plane)
-	{
-		D3DXMATRIX lightVP = m_lightViewProjection;
-		D3DXMatrixTranspose(&lightVP, &lightVP);
-
-		device->SetVertexShaderConstantF(16, reinterpret_cast<const float*>(&lightVP), 4);
-
-		m_plane->SetShaderProfile(2);
-
-		// See next section.
-		m_plane->Render(m_viewProjection);
-	}
-
-	device->SetDepthStencilSurface(oldDepthSurface);
-	device->SetRenderTarget(0, oldRenderTarget);
-	device->SetViewport(&oldViewport);
-
-	SAFE_RELEASE(oldDepthSurface);
-	SAFE_RELEASE(oldRenderTarget);
-
-	return true;
-}
-
-void CharacterApp::DrawShadowMapPreview()
-{
-	IDirect3DDevice9* device = Device();
-	if (!device || !m_shadowMap)
-		return;
-
-	Framework::D3D9ScopedStateBlock restoreState(device);
-
-	struct TVertex
-	{
-		float x, y, z, rhw;
-		float u, v;
-	};
-
-	constexpr DWORD FVF = D3DFVF_XYZRHW | D3DFVF_TEX1;
-	const float scale = 256.0f;
-
-	const TVertex vertices[4] =
-	{
-		{ 0.0f,  0.0f,  0.0f, 1.0f, 0.0f, 0.0f },
-		{ scale, 0.0f,  0.0f, 1.0f, 1.0f, 0.0f },
-		{ scale, scale, 0.0f, 1.0f, 1.0f, 1.0f },
-		{ 0.0f,  scale, 0.0f, 1.0f, 0.0f, 1.0f },
-	};
-
-	device->SetRenderState(D3DRS_ZENABLE, FALSE);
-	device->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
-	device->SetRenderState(D3DRS_LIGHTING, FALSE);
-	device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
-	device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-
-	device->SetVertexShader(nullptr);
-	device->SetPixelShader(nullptr);
-	device->SetVertexDeclaration(nullptr);
-
-	device->SetTexture(0, m_shadowMap);
-	device->SetTexture(1, nullptr);
-	device->SetTexture(2, nullptr);
-
-	device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-	device->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-	device->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-	device->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
-
-	device->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_POINT);
-	device->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_POINT);
-	device->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_NONE);
-	device->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
-	device->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
-
-	device->SetFVF(FVF);
-	device->DrawPrimitiveUP(D3DPT_TRIANGLEFAN, 2, vertices, sizeof(TVertex));
 }
 
 void CharacterApp::RenderText()

@@ -5,6 +5,7 @@
 #include "../framework/TrackballController.h"
 #include "CharacterAppSettings.h"
 #include "HdrRenderer.h"
+#include "ShadowMapRenderer.h"
 
 #include <memory>
 #include <string>
@@ -30,8 +31,6 @@ protected:
 	void Update(float deltaSeconds) override;
 	void Render(Framework::RenderContext& context) override;
 	void RenderMeshes();
-	bool RenderShadowMap();
-	void DrawShadowMapPreview();
 
 	void OnKeyDown(uint32_t vk) override;
 	void OnKeyUp(uint32_t vk) override;
@@ -87,19 +86,6 @@ private:
 	Framework::TrackballController m_trackball;
 	float m_zoom = -120.0f;
 
-	static constexpr int ShadowMapSize = 2048;
-	static constexpr D3DFORMAT ShadowMapFormat = D3DFMT_R32F;
-	static constexpr float ShadowNearPlane = 5.5f;
-	static constexpr float ShadowFarPlane = 200.0f;
-
-	bool m_showShadowMap = false;
-	IDirect3DTexture9* m_shadowMap = nullptr;
-	IDirect3DSurface9* m_shadowMapSurface = nullptr;
-	IDirect3DSurface9* m_shadowDepthSurface = nullptr;
-
 	HdrRenderer m_hdr;
-
-	D3DXVECTOR3 m_lightViewPosition = D3DXVECTOR3(50.0f, 100.0f, 50.0f);
-	D3DXMATRIX m_lightViewProjection = {};
-	D3DXMATRIX m_scaleBias = {};
+	ShadowMapRenderer m_shadowMapRenderer;
 };
