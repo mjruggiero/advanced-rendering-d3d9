@@ -15,6 +15,18 @@ This project explores real-time rendering techniques, shader pipelines, and incr
 - Legacy HLSL shader compilation workflow
 - Incremental application-level refactoring
 
+## Screenshots
+
+### Basic profile with shadow mapping
+![Basic shader profile](docs/screenshots/profile1-shadowed.png)
+
+### Cook Torrance lighting with shadow mapping
+![Basic shader profile](docs/screenshots/profile2-cook-torrance.png)
+
+### Cook Torrance lighting with shadow mapping and HDR
+![Basic shader profile](docs/screenshots/profile2-cook-torrance-hdr.png)
+
+
 ## Recent Modernization Work
 
 - Extracted HDR post-processing into a dedicated renderer class
