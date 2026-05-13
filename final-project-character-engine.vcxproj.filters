@@ -203,5 +203,8 @@
     <ClInclude Include="src\app\ShadowMapRenderer.h">
       <Filter>app</Filter>
     </ClInclude>
+    <ClInclude Include="src\legacy\ShaderProfileLimits.h">
+      <Filter>legacy</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

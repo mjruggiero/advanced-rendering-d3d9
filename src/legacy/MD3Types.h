@@ -21,13 +21,13 @@
 //-----------------------------------------------------------------------------
 #pragma once
 
+#include "ShaderProfileLimits.h"
 
 #include <D3DX9.h>
 #include "D3D9.h"
 
 #define MAXTEXTURESPERMESH 6
 #define MAXSHADERLEVELINMESH 12
-#define MAXSHADERPROFILE 7
 
 extern int iShaderProfile;
 

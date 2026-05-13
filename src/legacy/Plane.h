@@ -1,10 +1,11 @@
 #pragma once
 
+#include "ShaderProfileLimits.h"
+
 #include <d3d9.h>
 #include <d3dx9.h>
 
 #define MAXSHADERLEVELINMESH 12
-#define MAXSHADERPROFILE 3
 
 struct PlaneVertex
 {

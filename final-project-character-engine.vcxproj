@@ -191,6 +191,7 @@
     <ClInclude Include="src\legacy\MD3Types.h" />
     <ClInclude Include="src\legacy\Plane.h" />
     <ClInclude Include="src\legacy\Q3Player.h" />
+    <ClInclude Include="src\legacy\ShaderProfileLimits.h" />
     <ClInclude Include="src\legacy\Sphere.h" />
     <ClInclude Include="src\legacy\uiAnimation.h" />
     <ClInclude Include="src\legacy\Utility.h" />
