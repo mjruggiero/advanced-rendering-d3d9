@@ -2,5 +2,7 @@ upper_mesh01,shaders/diffuse.vsh,shaderlevel0
 upper_mesh01,shaders/diffuse.psh,shaderlevel0
 upper_mesh01,shaders/CookTorrance.vsh,shaderlevel1
 upper_mesh01,shaders/CookTorrance.psh,shaderlevel1
+upper_mesh01,shaders/CookTorrance.vsh,shaderlevel2
+upper_mesh01,shaders/CookTorrance.psh,shaderlevel2
 upper_mesh01,shaders/CreateShadowMap.vsh,shaderlevel3
 upper_mesh01,shaders/CreateShadowMap.psh,shaderlevel3

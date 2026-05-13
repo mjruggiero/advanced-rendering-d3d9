@@ -2,6 +2,8 @@ head01,shaders/diffuse.vsh,shaderlevel0
 head01,shaders/diffuse.psh,shaderlevel0
 head01,shaders/CookTorrance.vsh,shaderlevel1
 head01,shaders/CookTorrance.psh,shaderlevel1
+head01,shaders/CookTorrance.vsh,shaderlevel2
+head01,shaders/CookTorrance.psh,shaderlevel2
 head01,shaders/CreateShadowMap.vsh,shaderlevel3
 head01,shaders/CreateShadowMap.psh,shaderlevel3
 
