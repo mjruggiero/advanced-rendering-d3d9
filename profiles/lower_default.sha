@@ -10,11 +10,11 @@ l_legs01,shaders/diffuse.vsh,shaderlevel1
 lower_mesh01,shaders/diffuse.psh,shaderlevel1
 lower_mesh02,shaders/diffuse.psh,shaderlevel1
 l_legs01,shaders/diffuse.psh,shaderlevel1
-lower_mesh01,shaders/diffuseSpecular.vsh,shaderlevel2
-lower_mesh02,shaders/diffuseSpecular.vsh,shaderlevel2
+lower_mesh01,shaders/CookTorrance.vsh,shaderlevel2
+lower_mesh02,shaders/CookTorrance.vsh,shaderlevel2
 l_legs01,shaders/CookTorrance.vsh,shaderlevel2
-lower_mesh01,shaders/diffuseSpecular.psh,shaderlevel2
-lower_mesh02,shaders/diffuseSpecular.psh,shaderlevel2
+lower_mesh01,shaders/CookTorrance.psh,shaderlevel2
+lower_mesh02,shaders/CookTorrance.psh,shaderlevel2
 l_legs01,shaders/CookTorrance.psh,shaderlevel2
 lower_mesh01,shaders/CreateShadowMap.vsh,shaderlevel3
 lower_mesh02,shaders/CreateShadowMap.vsh,shaderlevel3

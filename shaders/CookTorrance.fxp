@@ -4,12 +4,12 @@ sampler ColorMapSampler = sampler_state{};
 texture BumpMap;
 sampler BumpMapSampler = sampler_state{};
 
-sampler ShadowMapSampler;
+sampler ShadowMapSampler : register(s2);
 
 bool bHDR : register(c29);
 
-// hardcoded for 1k shadow map
-const float2 TexelSize = {1.0f/2048.0f, 1.0f/2048.0f};
+// hardcoded for 2k shadow map
+static const float2 TexelSize = {1.0f/2048.0f, 1.0f/2048.0f};
 
 float OffsetLookup(sampler2D map, float4 loc, float2 offset)
 {
@@ -70,9 +70,9 @@ float4 PS (float2 Tex: TEXCOORD0,
 	//------------------------------
 	// Compute Beckmann's distribution function
 	//					  -[(1 - N.H^2) / m^2 * (N.H)^2]
-	// D =     1       e^		
-	//      m^2 N.H^4        
-	// ß is the angle between N and H
+	// D = ï¿½ï¿½ï¿½ï¿½1 ï¿½ï¿½ï¿½ï¿½ï¿½ e^		
+	// ï¿½ï¿½ï¿½ï¿½ m^2 N.H^4        
+	// ï¿½ is the angle between N and H
 	// m is the root-mean-square slope of the microfacets
 	//------------------------------
 	float NH = saturate(dot(N, H));
@@ -109,13 +109,18 @@ float4 PS (float2 Tex: TEXCOORD0,
 	// N.L in the Rs formula and N.L in this formula negate each other
 	//------------------------------
 	float3 temp = AmbInt * color + NL * saturate(Iidw * ((DiffInt * NL * color) + (SpecInt * Specular)));
-	
-    if(bHDR)
-    {
-		return EncodeRGBE8(float4(temp.x, temp.y, temp.z, 1.0f));
-    }
-    else
-    {
-		return float4(temp.x, temp.y, temp.z, 1.0f);
-    }
+
+	float ShadowMap = tex2Dproj(ShadowMapSampler, ShadowMapUV).x;
+	float shadowVisibility = (Depth - ShadowMap < 0.0f) ? 0.0f : 1.0f;
+
+	temp *= shadowVisibility;
+
+	if(bHDR)
+	{
+		return EncodeRGBE8(temp);
+	}
+	else
+	{
+		return float4(temp, 1.0f);
+	}
 }
